@@ -677,7 +677,8 @@ const RECEITAS={
    {t:'add',item:'leite',txt:'Coloque o leite na jarra',camada:{cor:'#FFFDF8',alt:.62}},
    {t:'segurar',ms:2500,txt:'Segure na jarra para vaporizar e fazer a espuma',
     vira:{cor:'#FFF7EC',alt:.74},som:'vapor',quente:true},
-   {t:'servir',txt:'Despeje o leite vaporizado na xícara',camada:{cor:'#D9B38C',alt:.2}},
+   {t:'servir',txt:'Despeje o leite vaporizado na xícara',camada:{cor:'#D9B38C',alt:.2},
+    mantem:true,resta:{cor:'#FFFDF8',alt:.34}},
    {t:'servir',txt:'Agora finalize com a espuma por cima',camada:{cor:'#FFFDF8',alt:.14}},
   ]},
 };
@@ -933,8 +934,16 @@ function concluirEtapa(){
   }
   else if(e.t==='servir'){
     if(e.camada) S.camadasCopo.push(e.camada);
-    // a vasilha usada sai do balcão e a bancada fica livre para a próxima
-    S.camadasCentro=[]; S.centro=null;
+    /* ⛔ BUG de 14/11: dois `servir` seguidos (leite e depois espuma) travavam
+       o jogo. O primeiro limpava o centro, e o segundo ficava sem vasilha de
+       onde arrastar — não havia como terminar o cappuccino.
+       Com `mantem`, a jarra FICA na bancada com o que sobrou dentro (`resta`),
+       e só vai embora no último despejo. */
+    if(e.mantem){
+      S.camadasCentro = e.resta ? [e.resta] : [];
+    }else{
+      S.camadasCentro=[]; S.centro=null;
+    }
     desenharCentro();desenharCopo();
     Som.toca('agua');
   }

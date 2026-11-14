@@ -356,6 +356,7 @@ button{font-family:inherit;cursor:pointer;border:none}
   <h2 style="margin:0;font-size:26px">Ranking</h2>
   <div id="rank-filtro" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"></div>
   <div class="rank" id="rank-box"></div>
+  <div id="rank-estado" style="font-size:13px;color:var(--cafe-claro);min-height:17px"></div>
   <button class="btn fantasma" onclick="irPara('t-inicio')">voltar</button>
 </section>
 
@@ -1156,17 +1157,151 @@ function lado(nome,ms,venceu){
 }
 
 /* ==========================================================================
-   12. RANKING — no próprio tablet, sem rede
+   12. RANKING — do tablet, e compartilhado quando houver rede
+
+   ⭐ Luiz, 14/11: a ordem aqui é inegociável. O resultado é gravado NO TABLET
+   primeiro, sempre; mandar para os outros é um extra que acontece depois. Por
+   isso uma queda de rede nunca perde um tempo nem trava o jogo: o que não foi
+   enviado fica numa fila e sai sozinho quando a rede volta.
+
+   Para ligar o compartilhado basta preencher as linhas abaixo. Vazias, o jogo
+   roda igual, só que cada tablet enxerga o ranking dele.
    ========================================================================== */
+const SINCRONIA = {
+  urlLeitura: '',   // endereço que DEVOLVE a lista de resultados (GET)
+  urlEscrita: '',   // endereço que RECEBE resultados novos (POST)
+  cabecalhos: {}    // chaves de acesso, se o servidor pedir
+};
+
+/* Um apelido fixo para este tablet. Serve para duas coisas: dar um número
+   único a cada partida (e assim nunca duplicar na soma) e mostrar quantos
+   tablets estão alimentando o ranking. */
+function idDoTablet(){
+  let id=null;
+  try{ id=localStorage.getItem('lacreme.tablet'); }catch(e){}
+  if(!id){
+    id='t'+Math.random().toString(36).slice(2,8);
+    try{ localStorage.setItem('lacreme.tablet',id); }catch(e){}
+  }
+  return id;
+}
+
 function lerRanking(){try{return JSON.parse(localStorage.getItem(CHAVE_RANK)||'[]');}
   catch(e){return [];}}
-function guardarNoRanking(nome,bebida,ms){
-  try{const r=lerRanking();
-    r.push({nome:nome,bebida:bebida,ms:Math.round(ms),quando:Date.now()});
-    localStorage.setItem(CHAVE_RANK,JSON.stringify(r.slice(-300)));}catch(e){}
+function escreverRanking(lista){
+  try{ localStorage.setItem(CHAVE_RANK,JSON.stringify(lista.slice(-300))); }catch(e){}
 }
+function guardarNoRanking(nome,bebida,ms){
+  const linha={ id: idDoTablet()+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),
+                tablet: idDoTablet(), nome: nome, bebida: bebida,
+                ms: Math.round(ms), quando: Date.now(), enviado: false };
+  const r=lerRanking(); r.push(linha); escreverRanking(r);
+  sincronizar();                 // tenta na hora; se falhar, fica na fila
+}
+
+/* Junta a lista de fora com a de casa SEM duplicar: o id de cada partida é
+   único, então o mesmo resultado chegando duas vezes conta uma só. */
+function fundirRanking(deFora){
+  if(!Array.isArray(deFora)) return 0;
+  const r=lerRanking();
+  const tenho={}; r.forEach(x=>{ if(x.id) tenho[x.id]=true; });
+  let novos=0;
+  deFora.forEach(x=>{
+    if(!x || !x.id || tenho[x.id]) return;
+    if(typeof x.ms!=='number' || !x.nome) return;   // linha estragada, ignora
+    r.push({id:x.id,tablet:x.tablet||'?',nome:String(x.nome).slice(0,18),
+            bebida:x.bebida,ms:Math.round(x.ms),quando:x.quando||Date.now(),
+            enviado:true});
+    tenho[x.id]=true; novos++;
+  });
+  if(novos) escreverRanking(r);
+  return novos;
+}
+
+let sincronizando=false, ultimaSincronia=0, erroSincronia=false;
+
+/* Uma ida à rede não pode ficar pendurada: 8 segundos e desiste. O jogo
+   nunca espera por isto — roda por fora. */
+function buscar(url, opcoes){
+  const corta=new AbortController();
+  const relogio=setTimeout(()=>corta.abort(), 8000);
+  return fetch(url, Object.assign({signal:corta.signal}, opcoes||{}))
+    .finally(()=>clearTimeout(relogio));
+}
+
+async function sincronizar(){
+  if(!SINCRONIA.urlLeitura || sincronizando) return;
+  if(!navigator.onLine){ erroSincronia=true; pintarSincronia(); return; }
+  sincronizando=true;
+  try{
+    // 1. manda o que ainda não saiu daqui
+    const fila=lerRanking().filter(x=>!x.enviado);
+    if(fila.length && SINCRONIA.urlEscrita){
+      const r=await buscar(SINCRONIA.urlEscrita,{
+        method:'POST',
+        headers:Object.assign({'Content-Type':'application/json'},SINCRONIA.cabecalhos),
+        body:JSON.stringify(fila.map(x=>({id:x.id,tablet:x.tablet,nome:x.nome,
+              bebida:x.bebida,ms:x.ms,quando:x.quando})))
+      });
+      if(r.ok){
+        const todos=lerRanking();
+        const saiu={}; fila.forEach(x=>saiu[x.id]=true);
+        todos.forEach(x=>{ if(saiu[x.id]) x.enviado=true; });
+        escreverRanking(todos);
+      }
+    }
+    // 2. traz o que os outros tablets gravaram
+    const r2=await buscar(SINCRONIA.urlLeitura,{headers:SINCRONIA.cabecalhos});
+    if(r2.ok){
+      fundirRanking(await r2.json());
+      ultimaSincronia=Date.now(); erroSincronia=false;
+      if(document.getElementById('t-rank').classList.contains('ativa')) desenharRanking();
+    } else erroSincronia=true;
+  }catch(e){ erroSincronia=true; }
+  finally{ sincronizando=false; pintarSincronia(); }
+}
+
+function pintarSincronia(){
+  const el=document.getElementById('rank-estado'); if(!el) return;
+  const todos=lerRanking();
+  const fila=todos.filter(x=>!x.enviado).length;
+  const tablets={}; todos.forEach(x=>{ if(x.tablet) tablets[x.tablet]=true; });
+  const quantos=Object.keys(tablets).length;
+  if(!SINCRONIA.urlLeitura){ el.textContent='Ranking deste tablet'; return; }
+  if(erroSincronia || !navigator.onLine){
+    el.textContent= fila
+      ? 'Sem rede — '+fila+' resultado'+(fila>1?'s':'')+' na fila, sai sozinho quando voltar'
+      : 'Sem rede — mostrando o que já chegou';
+    return;
+  }
+  el.textContent='Compartilhado · '+quantos+' tablet'+(quantos>1?'s':'')+
+    (ultimaSincronia?' · atualizado agora':'');
+}
+
+/* a rede voltou: manda a fila na hora */
+window.addEventListener('online', sincronizar);
+
+/* ⛔ o evento acima só dispara quando o aparelho perde e recupera o wifi. Se o
+   wifi continuou de pé e quem caiu foi o servidor, nada avisa. Então, enquanto
+   houver resultado na fila, tenta de novo sozinho a cada minuto — não importa
+   em que tela a pessoa esteja. É o que garante o 'atualiza sozinho'. */
+setInterval(()=>{
+  if(!SINCRONIA.urlLeitura) return;
+  if(lerRanking().some(x=>!x.enviado)) sincronizar();
+}, 60000);
+
+let relogioRank=null;
 let filtroRank='todas';
-function abrirRanking(){filtroRank='todas';desenharRanking();irPara('t-rank');}
+function abrirRanking(){
+  filtroRank='todas';desenharRanking();irPara('t-rank');
+  pintarSincronia(); sincronizar();
+  clearInterval(relogioRank);
+  relogioRank=setInterval(()=>{
+    if(document.getElementById('t-rank').classList.contains('ativa')){
+      pintarSincronia(); sincronizar();
+    } else clearInterval(relogioRank);
+  },25000);
+}
 function desenharRanking(){
   const f=document.getElementById('rank-filtro');f.innerHTML='';
   [['todas','Todas']].concat(Object.entries(RECEITAS).map(([id,r])=>[id,r.nome]))
@@ -1222,7 +1357,7 @@ window.addEventListener('resize',()=>{
    Vai dentro de try/catch e so roda em https (ou no proprio computador):
    se o navegador nao aceitar, o jogo continua igual, so sem o guardado.
    ========================================================================== */
-const VERSAO='2026-11-14 16:00';   // trocado automaticamente a cada publicacao
+const VERSAO='2026-11-14 16:08';   // trocado automaticamente a cada publicacao
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
     try{ navigator.serviceWorker.register('sw.js'); }catch(e){}

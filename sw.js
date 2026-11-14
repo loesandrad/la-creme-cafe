@@ -9,7 +9,7 @@
    e, se houver rede, baixar a versão nova por trás para a PRÓXIMA abertura.
    Assim um wifi ruim nunca trava a abertura.
    ========================================================================== */
-const CACHE = 'lacreme-v1';
+const CACHE = 'lacreme-v2';   // v2: tira o versao.txt do guardado
 const ESSENCIAL = ['./', './index.html'];
 
 self.addEventListener('install', ev => {
@@ -34,6 +34,14 @@ self.addEventListener('activate', ev => {
 self.addEventListener('fetch', ev => {
   const req = ev.request;
   if (req.method !== 'GET') return;
+
+  /* ⛔ o carimbo da versao NUNCA pode sair do guardado: ele existe
+     justamente para descobrir que o guardado esta velho. Vai direto na
+     rede, e sem rede simplesmente falha — quem chamou trata isso. */
+  if (new URL(req.url).pathname.endsWith('/versao.txt')) {
+    ev.respondWith(fetch(req));
+    return;
+  }
 
   ev.respondWith(
     caches.match(req, { ignoreSearch: true }).then(guardado => {

@@ -79,16 +79,32 @@ button{font-family:inherit;cursor:pointer;border:none}
   background:rgba(255,240,220,.18);padding:5px 11px;border-radius:20px}
 .crono{font-variant-numeric:tabular-nums;font-size:28px;font-weight:800;flex:none}
 
-/* a mesa: vasilha no centro, xícara à direita */
-.mesa{position:relative;display:flex;align-items:center;justify-content:center;
-  gap:min(7vw,90px);
-  background:radial-gradient(ellipse at 50% 42%,#fffaf2 0%,var(--creme) 70%);
-  overflow:hidden}
-.mesa::after{content:'';position:absolute;left:50%;top:50%;
-  transform:translate(-50%,-50%);width:min(62vw,560px);height:min(62vw,560px);
-  border-radius:50%;background:rgba(217,166,107,.13);z-index:0}
-.posto{position:relative;z-index:1;display:flex;flex-direction:column;
+/* ===== O BALCÃO DA CAFETERIA =====
+   parede com prateleiras ao fundo, bancada de madeira embaixo, e as
+   vasilhas apoiadas em cima dela. */
+.mesa{position:relative;display:flex;align-items:flex-end;justify-content:center;
+  gap:min(7vw,90px);overflow:hidden;padding-bottom:min(12vh,86px)}
+#cenario{position:absolute;inset:0;width:100%;height:100%;z-index:0;
+  pointer-events:none}
+.posto{position:relative;z-index:2;display:flex;flex-direction:column;
   align-items:center;gap:6px}
+
+/* fumaça que sobe da vasilha quente */
+.fumaca{position:absolute;left:50%;bottom:72%;transform:translateX(-50%);
+  z-index:3;pointer-events:none;display:none}
+.fumaca.on{display:block}
+.fumaca span{position:absolute;bottom:0;width:17px;height:17px;border-radius:50%;
+  background:rgba(255,255,255,.78);filter:blur(3px);
+  animation:sobe 2.1s ease-out infinite}
+.fumaca span:nth-child(1){left:-26px;animation-delay:0s}
+.fumaca span:nth-child(2){left:0;animation-delay:.45s;width:21px;height:21px}
+.fumaca span:nth-child(3){left:24px;animation-delay:.9s}
+.fumaca span:nth-child(4){left:-11px;animation-delay:1.35s;width:14px;height:14px}
+@keyframes sobe{
+  0%{opacity:0;transform:translateY(0) scale(.5)}
+  25%{opacity:.85}
+  100%{opacity:0;transform:translateY(-110px) scale(1.9)}
+}
 .posto svg{display:block;filter:drop-shadow(0 7px 10px rgba(113,62,32,.22))}
 .posto .rot{font-size:13px;font-weight:700;color:var(--cafe-claro)}
 #centro svg{width:min(34vw,262px);height:min(34vw,262px)}
@@ -102,9 +118,13 @@ button{font-family:inherit;cursor:pointer;border:none}
   font-weight:700;font-size:15px;text-align:center;padding:18px}
 
 /* prateleira de itens */
+/* a gaveta do balcão, onde ficam os ingredientes */
 .prateleira{display:flex;align-items:flex-end;justify-content:center;
-  gap:min(3vw,26px);padding:6px 14px 10px;background:rgba(233,205,170,.42);
-  border-top:4px solid var(--bege);min-height:118px;flex-wrap:wrap}
+  gap:min(3vw,26px);padding:8px 14px 10px;min-height:118px;flex-wrap:wrap;
+  background:linear-gradient(#B07A45 0%,#9A6637 16%,#8A5A2E 100%);
+  border-top:5px solid #6E4522;
+  box-shadow:inset 0 9px 14px rgba(0,0,0,.17)}
+.prateleira .item span{color:#FFF0DC;text-shadow:0 1px 2px rgba(0,0,0,.45)}
 .item{width:98px;display:flex;flex-direction:column;align-items:center;gap:2px;
   touch-action:none}
 .item svg{width:72px;height:72px;pointer-events:none;
@@ -113,8 +133,15 @@ button{font-family:inherit;cursor:pointer;border:none}
   line-height:1.1}
 .item.pronto{animation:pulsa 1.2s ease-in-out infinite}
 .item.errou{animation:treme .32s}
-.item.usado{opacity:.28;pointer-events:none}
 .item.arrastando{position:fixed;z-index:40;pointer-events:none}
+/* ⭐ item usado SOME da gaveta, como no Sara's — encolhe e sai, e os que
+   sobraram se reorganizam. A gaveta ir esvaziando é o próprio placar. */
+.item.sumindo{animation:some .34s ease-in forwards;pointer-events:none}
+@keyframes some{
+  0%{opacity:1;transform:scale(1)}
+  35%{opacity:1;transform:scale(1.22) rotate(-7deg)}
+  100%{opacity:0;transform:scale(.25) rotate(14deg)}
+}
 @keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}
 @keyframes treme{0%,100%{transform:translateX(0)}25%{transform:translateX(-9px)}
   75%{transform:translateX(9px)}}
@@ -219,7 +246,10 @@ button{font-family:inherit;cursor:pointer;border:none}
     <span class="crono" id="jg-crono">00:00.0</span>
   </header>
   <div class="mesa" id="mesa">
-    <div class="posto" id="centro"></div>
+    <svg id="cenario" viewBox="0 0 1200 560" preserveAspectRatio="xMidYMax slice"></svg>
+    <div class="posto" id="centro">
+      <div class="fumaca" id="fumaca"><span></span><span></span><span></span><span></span></div>
+    </div>
     <div class="posto" id="copo"></div>
     <div class="barra" id="barra"><i></i></div>
   </div>
@@ -388,6 +418,129 @@ const BEBIDA_ART={
 const svg=(n,e)=>'<svg viewBox="0 0 120 120" '+(e||'')+'>'+(ART[n]||'')+'</svg>';
 
 /* ==========================================================================
+   1b. O CENÁRIO — o balcão da cafeteria. Parede com prateleiras e quadro ao
+   fundo, bancada de madeira na frente. As vasilhas ficam apoiadas nela.
+   ========================================================================== */
+const CENARIO=`
+<defs>
+  <linearGradient id="gPar" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#F6E3C8"/><stop offset="100%" stop-color="#EAD2B0"/>
+  </linearGradient>
+  <linearGradient id="gBan" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#C08A54"/><stop offset="30%" stop-color="#A9703E"/>
+    <stop offset="100%" stop-color="#8A5A2E"/>
+  </linearGradient>
+</defs>
+<rect width="1200" height="560" fill="url(#gPar)"/>
+<!-- azulejo claro da parede -->
+<g opacity=".45" stroke="#DCC09A" stroke-width="3">
+  <path d="M0 70h1200M0 140h1200M0 210h1200"/>
+  <path d="M100 70v140M300 70v140M500 70v140M700 70v140M900 70v140M1100 70v140"/>
+</g>
+<!-- placa da casa -->
+<g transform="translate(600 56)">
+  <rect x="-168" y="-40" width="336" height="80" rx="14" fill="#5B8057"
+    stroke="#2E4A2C" stroke-width="6"/>
+  <text x="0" y="-2" text-anchor="middle" font-family="Segoe UI,sans-serif"
+    font-size="31" font-weight="800" fill="#FFF0DC" letter-spacing="3">LA CRÈME</text>
+  <text x="0" y="26" text-anchor="middle" font-family="Segoe UI,sans-serif"
+    font-size="16" font-weight="700" fill="#D9A66B" letter-spacing="7">CAFÉ</text>
+</g>
+<!-- prateleira esquerda com xícaras -->
+<g transform="translate(90 150)">
+  <rect x="0" y="54" width="250" height="15" rx="6" fill="#A9703E" stroke="#4A2C14" stroke-width="5"/>
+  <g stroke="#4A2C14" stroke-width="5" stroke-linejoin="round">
+    <path d="M18 22h46v18a23 23 0 0 1-23 14h0a23 23 0 0 1-23-14z" fill="#FFFDF8"/>
+    <path d="M92 22h46v18a23 23 0 0 1-23 14h0a23 23 0 0 1-23-14z" fill="#FFF0DC"/>
+    <path d="M166 22h46v18a23 23 0 0 1-23 14h0a23 23 0 0 1-23-14z" fill="#FFFDF8"/>
+  </g>
+</g>
+<!-- prateleira direita com pacotes de café e planta -->
+<g transform="translate(860 150)">
+  <rect x="0" y="54" width="250" height="15" rx="6" fill="#A9703E" stroke="#4A2C14" stroke-width="5"/>
+  <g stroke="#4A2C14" stroke-width="5" stroke-linejoin="round">
+    <path d="M20 8h52v46H20z" fill="#713E20"/><path d="M28 20h36v9H28z" fill="#D9A66B"/>
+    <path d="M90 14h48v40H90z" fill="#5B8057"/><path d="M98 26h32v8H98z" fill="#E9CDAA"/>
+  </g>
+  <g transform="translate(176 0)">
+    <path d="M14 30c-10-16 2-30 14-22 10-14 26-4 20 12 12 2 12 18-2 18H18z" fill="#5B8057"
+      stroke="#2E4A2C" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M12 38h40l-5 16H17z" fill="#C08A54" stroke="#4A2C14" stroke-width="5"
+      stroke-linejoin="round"/>
+  </g>
+</g>
+<!-- máquina de espresso encostada na parede -->
+<g transform="translate(395 196)">
+  <rect x="0" y="0" width="150" height="86" rx="12" fill="#8A5A2E" stroke="#4A2C14" stroke-width="6"/>
+  <rect x="16" y="14" width="118" height="36" rx="8" fill="#A9703E"/>
+  <circle cx="44" cy="32" r="10" fill="#E8B77A" stroke="#4A2C14" stroke-width="4"/>
+  <circle cx="80" cy="32" r="10" fill="#5B8057" stroke="#4A2C14" stroke-width="4"/>
+  <rect x="52" y="60" width="46" height="16" rx="5" fill="#6E4522"/>
+</g>
+<!-- a BANCADA -->
+<rect x="0" y="282" width="1200" height="34" rx="8" fill="#C08A54" stroke="#4A2C14" stroke-width="6"/>
+<rect x="0" y="312" width="1200" height="248" fill="url(#gBan)"/>
+<g opacity=".3" stroke="#6E4522" stroke-width="4">
+  <path d="M0 360h1200M0 420h1200M0 486h1200"/>
+</g>`;
+
+/* ==========================================================================
+   1c. SOM — sintetizado no navegador, sem arquivo de áudio nenhum. É o que
+   deixa o jogo offline e continuando num arquivo só.
+   ========================================================================== */
+const Som=(()=>{
+  let ctx=null, ligado=true;
+  const acorda=()=>{
+    if(!ctx){ const AC=window.AudioContext||window.webkitAudioContext;
+      if(!AC) return null; ctx=new AC(); }
+    if(ctx.state==='suspended') ctx.resume();
+    return ctx;
+  };
+  // ruído branco: a base da água, do moedor e do vapor
+  function ruido(dur,f0,f1,vol,q){
+    const c=acorda(); if(!c) return;
+    const n=Math.floor(c.sampleRate*dur);
+    const buf=c.createBuffer(1,n,c.sampleRate), d=buf.getChannelData(0);
+    for(let i=0;i<n;i++) d[i]=Math.random()*2-1;
+    const src=c.createBufferSource(); src.buffer=buf;
+    const fil=c.createBiquadFilter(); fil.type='bandpass';
+    fil.frequency.setValueAtTime(f0,c.currentTime);
+    fil.frequency.linearRampToValueAtTime(f1,c.currentTime+dur);
+    fil.Q.value=q||1.2;
+    const g=c.createGain();
+    g.gain.setValueAtTime(0,c.currentTime);
+    g.gain.linearRampToValueAtTime(vol,c.currentTime+dur*.15);
+    g.gain.linearRampToValueAtTime(0,c.currentTime+dur);
+    src.connect(fil).connect(g).connect(c.destination); src.start();
+  }
+  function nota(freq,dur,vol,tipo,atraso){
+    const c=acorda(); if(!c) return;
+    const t=c.currentTime+(atraso||0);
+    const o=c.createOscillator(), g=c.createGain();
+    o.type=tipo||'sine'; o.frequency.setValueAtTime(freq,t);
+    g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(vol,t+.02);
+    g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    o.connect(g).connect(c.destination); o.start(t); o.stop(t+dur+.05);
+  }
+  const vozes={
+    agua:   ()=>ruido(1.1, 500, 1700, .19, 1.0),   // água caindo
+    moer:   ()=>ruido(1.6, 160,  420, .22, 0.8),   // moedor roncando
+    vapor:  ()=>ruido(1.5,2200, 4200, .15, 2.2),   // chiado do vaporizador
+    pousar: ()=>{ nota(180,.1,.14,'sine'); ruido(.16,300,180,.1,1); },
+    ok:     ()=>{ nota(784,.14,.1); nota(1046,.2,.09,'sine',.09); },
+    erro:   ()=>nota(150,.18,.13,'square'),
+    fim:    ()=>{ [523,659,784,1046].forEach((f,i)=>nota(f,.3,.11,'sine',i*.1)); },
+    tique:  ()=>nota(660,.1,.09,'triangle'),
+  };
+  return {
+    toca(n){ if(!ligado) return; try{ vozes[n]&&vozes[n](); }catch(e){} },
+    ligar(v){ ligado=v; },
+    acordar(){ try{ acorda(); }catch(e){} },
+  };
+})();
+
+/* ==========================================================================
    2. RECEITAS — dado puro. Para criar uma bebida nova basta escrever
       outra entrada; nada da lógica muda.
 
@@ -404,12 +557,13 @@ const RECEITAS={
    {t:'add',item:'graos',txt:'Coloque os grãos dentro do moedor',
     camada:{cor:'#8B5A2B',alt:.5}},
    {t:'segurar',ms:2200,txt:'Segure no moedor para moer o café',
-    vira:{cor:'#5C3A1E',alt:.42},libera:'moido'},
+    vira:{cor:'#5C3A1E',alt:.42},libera:'moido',som:'moer'},
    {t:'vasilha',v:'filtro',txt:'Agora traga o filtro para o centro'},
    {t:'add',item:'moido',txt:'Coloque o café moído no filtro',camada:{cor:'#5C3A1E',alt:.38}},
-   {t:'add',item:'agua',txt:'Despeje a água quente no filtro',camada:{cor:'#9FD3E8',alt:.5}},
+   {t:'add',item:'agua',txt:'Despeje a água quente no filtro',camada:{cor:'#9FD3E8',alt:.5},
+    som:'agua',quente:true},
    {t:'segurar',ms:2400,txt:'Segure no filtro e espere a extração',
-    vira:{cor:'#3B2412',alt:.62}},
+    vira:{cor:'#3B2412',alt:.62},som:'agua',quente:true},
    {t:'servir',txt:'Arraste o filtro até a xícara para servir',
     camada:{cor:'#3B2412',alt:.46}},
   ]},
@@ -419,17 +573,18 @@ const RECEITAS={
    {t:'vasilha',v:'moedor',txt:'Arraste o moedor até o centro da mesa'},
    {t:'add',item:'graos',txt:'Coloque os grãos dentro do moedor',camada:{cor:'#8B5A2B',alt:.5}},
    {t:'segurar',ms:2100,txt:'Segure no moedor para moer o café',
-    vira:{cor:'#5C3A1E',alt:.42},libera:'moido'},
+    vira:{cor:'#5C3A1E',alt:.42},libera:'moido',som:'moer'},
    {t:'vasilha',v:'filtro',txt:'Agora traga o filtro para o centro'},
    {t:'add',item:'moido',txt:'Coloque o café moído no filtro',camada:{cor:'#5C3A1E',alt:.38}},
-   {t:'add',item:'agua',txt:'Despeje a água quente no filtro',camada:{cor:'#9FD3E8',alt:.5}},
-   {t:'segurar',ms:2200,txt:'Segure no filtro e espere a extração',vira:{cor:'#3B2412',alt:.6}},
+   {t:'add',item:'agua',txt:'Despeje a água quente no filtro',camada:{cor:'#9FD3E8',alt:.5},
+    som:'agua',quente:true},
+   {t:'segurar',ms:2200,txt:'Segure no filtro e espere a extração',vira:{cor:'#3B2412',alt:.6},som:'agua',quente:true},
    {t:'servir',txt:'Arraste o filtro até a xícara para servir o café',
     camada:{cor:'#3B2412',alt:.3}},
    {t:'vasilha',v:'jarra',txt:'Traga a jarra para o centro'},
    {t:'add',item:'leite',txt:'Coloque o leite na jarra',camada:{cor:'#FFFDF8',alt:.6}},
    {t:'segurar',ms:2000,txt:'Segure na jarra para aquecer o leite',
-    vira:{cor:'#FFF4E4',alt:.6}},
+    vira:{cor:'#FFF4E4',alt:.6},som:'vapor',quente:true},
    {t:'servir',txt:'Arraste a jarra até a xícara e junte o leite',
     camada:{cor:'#E8C9A0',alt:.3}},
   ]},
@@ -440,19 +595,19 @@ const RECEITAS={
    {t:'vasilha',v:'moedor',txt:'Arraste o moedor até o centro da mesa'},
    {t:'add',item:'graos',txt:'Coloque os grãos dentro do moedor',camada:{cor:'#8B5A2B',alt:.5}},
    {t:'segurar',ms:2300,txt:'Segure no moedor — moagem fina para espresso',
-    vira:{cor:'#4A2C14',alt:.42},libera:'moido'},
+    vira:{cor:'#4A2C14',alt:.42},libera:'moido',som:'moer'},
    {t:'vasilha',v:'porta',txt:'Traga o porta-filtro para o centro'},
    {t:'add',item:'moido',txt:'Coloque o café moído no porta-filtro',
     camada:{cor:'#4A2C14',alt:.6}},
    {t:'add',item:'tamper',txt:'Compacte o café com o tamper',
     camada:{cor:'#3B2412',alt:.72},consome:false},
    {t:'segurar',ms:2600,txt:'Segure no porta-filtro para extrair o espresso',
-    vira:{cor:'#2E1C0E',alt:.78}},
+    vira:{cor:'#2E1C0E',alt:.78},som:'agua',quente:true},
    {t:'servir',txt:'Arraste o porta-filtro até a xícara',camada:{cor:'#3B2412',alt:.24}},
    {t:'vasilha',v:'jarra',txt:'Traga a jarra de leite para o centro'},
    {t:'add',item:'leite',txt:'Coloque o leite na jarra',camada:{cor:'#FFFDF8',alt:.62}},
    {t:'segurar',ms:2500,txt:'Segure na jarra para vaporizar e fazer a espuma',
-    vira:{cor:'#FFF7EC',alt:.74}},
+    vira:{cor:'#FFF7EC',alt:.74},som:'vapor',quente:true},
    {t:'servir',txt:'Despeje o leite vaporizado na xícara',camada:{cor:'#D9B38C',alt:.2}},
    {t:'servir',txt:'Agora finalize com a espuma por cima',camada:{cor:'#FFFDF8',alt:.14}},
   ]},
@@ -520,8 +675,8 @@ function comecarPartida(){
   el.textContent=n;
   const passo=setInterval(()=>{
     n--;
-    if(n>0) el.textContent=n;
-    else if(n===0){el.textContent='VALENDO!';el.style.fontSize='clamp(48px,13vw,120px)';}
+    if(n>0){ el.textContent=n; Som.toca('tique'); }
+    else if(n===0){el.textContent='VALENDO!';Som.toca('ok');el.style.fontSize='clamp(48px,13vw,120px)';}
     else{clearInterval(passo);el.style.fontSize='';montarMesa();return;}
     el.style.animation='none';void el.offsetWidth;el.style.animation='';
   },900);
@@ -576,13 +731,21 @@ function miniVasilha(n){
    sensação do Sara's: o conteúdo aparece empilhando lá dentro. */
 function desenharCentro(){
   const c=document.getElementById('centro');
+  // ⚠️ a fumaça mora dentro do #centro; guardar antes de trocar o conteúdo,
+  //    senão ela é apagada a cada redesenho e nunca aparece.
+  const fum=document.getElementById('fumaca');
   if(!S.centro){
     c.innerHTML='<div class="vazio-centro">traga uma vasilha<br>para cá</div>';
-    return;
+  }else{
+    const v=ART[VASILHA_ART[S.centro]], I=v.inter;
+    c.innerHTML='<svg viewBox="0 0 120 120">'+v.base+camadasSVG(I,S.camadasCentro)+
+      v.frente+'</svg><div class="rot">'+(ROT[S.centro]||'')+'</div>';
   }
-  const v=ART[VASILHA_ART[S.centro]], I=v.inter;
-  c.innerHTML='<svg viewBox="0 0 120 120">'+v.base+camadasSVG(I,S.camadasCentro)+
-    v.frente+'</svg><div class="rot">'+(ROT[S.centro]||'')+'</div>';
+  if(fum) c.appendChild(fum);
+}
+function fumegar(liga){
+  const f=document.getElementById('fumaca');
+  if(f) f.classList.toggle('on',!!liga);
 }
 function desenharCopo(){
   const v=ART.v_copo, I=v.inter;
@@ -640,6 +803,8 @@ function pintarEtapa(){
   document.getElementById('jg-passo').textContent=(S.etapa+1)+'/'+r.etapas.length;
   document.getElementById('jg-texto').textContent=e.txt;
   faixa.style.animation='none';void faixa.offsetWidth;faixa.style.animation='';
+  // a fumaça fica ligada enquanto a vasilha do centro estiver quente
+  fumegar(!!e.quente && !!S.centro);
 
   // quem pisca: a origem e o destino da ação
   if(e.t==='vasilha'){ S.itens[e.v]&&S.itens[e.v].classList.add('pronto');
@@ -650,28 +815,40 @@ function pintarEtapa(){
   else if(e.t==='servir'){ document.getElementById('copo').classList.add('alvo'); }
 }
 
+/* Tira o item da gaveta de vez, com a animação de sumiço. */
+function sumirItem(nome){
+  const it=S.itens[nome]; if(!it) return;
+  it.classList.add('sumindo');
+  setTimeout(()=>{ it.remove(); delete S.itens[nome]; },340);
+}
+
 function concluirEtapa(){
   const e=etapaAtual();
   if(e.t==='vasilha'){
     S.centro=e.v;S.camadasCentro=[];
-    S.itens[e.v]&&S.itens[e.v].classList.add('usado');
     desenharCentro();
+    sumirItem(e.v);
+    Som.toca('pousar');
   }
   else if(e.t==='add'){
     if(e.camada) S.camadasCentro.push(e.camada);
-    if(e.consome!==false) S.itens[e.item]&&S.itens[e.item].classList.add('usado');
     desenharCentro();
+    if(e.consome!==false) sumirItem(e.item);
+    Som.toca(e.som||'pousar');
   }
   else if(e.t==='segurar'){
     if(e.vira) S.camadasCentro=[e.vira];
-    if(e.libera){ const it=S.itens[e.libera];
-      if(it){ it.style.display=''; it.classList.remove('usado'); } }
     desenharCentro();
+    // o café moído só nasce aqui, depois da moagem
+    if(e.libera){ const it=S.itens[e.libera]; if(it) it.style.display=''; }
+    Som.toca('ok');
   }
   else if(e.t==='servir'){
     if(e.camada) S.camadasCopo.push(e.camada);
-    S.camadasCentro=[];
+    // a vasilha usada sai do balcão e a bancada fica livre para a próxima
+    S.camadasCentro=[]; S.centro=null;
     desenharCentro();desenharCopo();
+    Som.toca('agua');
   }
   S.etapa++;
   aviso('Boa!',true);
@@ -760,6 +937,7 @@ function encostou(a,b){
 
 function errar(el){
   el.classList.remove('errou');void el.offsetWidth;el.classList.add('errou');
+  Som.toca('erro');
   aviso('Esse não é o passo agora');
 }
 
@@ -767,6 +945,9 @@ function errar(el){
 function comecarSegurar(e){
   const barra=document.getElementById('barra');
   barra.classList.add('on');
+  // o som acompanha a ação: o moedor ronca enquanto você segura
+  if(e.som) Som.toca(e.som);
+  if(e.quente) fumegar(true);
   const i=barra.querySelector('i'), t0=performance.now();
   segurar={raf:0};
   (function anda(){
@@ -793,7 +974,7 @@ function finalizar(){
   const r=RECEITAS[S.bebida];
   if(S.etapa<r.etapas.length){aviso('Ainda falta etapa da receita');return;}
   S.fim=performance.now()-S.inicio;
-  pararCrono();
+  pararCrono(); fumegar(false); Som.toca('fim');
   guardarNoRanking(S.nome,S.bebida,S.fim);
   const antes=lerRanking().filter(x=>x.bebida===S.bebida).sort((a,b)=>a.ms-b.ms);
   document.getElementById('fim-titulo').textContent='Bebida pronta!';
@@ -853,7 +1034,14 @@ function desenharRanking(){
 /* ==========================================================================
    13. PARTIDA
    ========================================================================== */
+document.getElementById('cenario').innerHTML=CENARIO;
 document.querySelectorAll('[data-logo]').forEach(s=>s.innerHTML=ART.logo);
+/* ⚠️ o navegador só deixa tocar som depois de um toque da pessoa — por isso
+   o áudio é acordado no primeiro toque da tela, uma vez só. */
+document.addEventListener('pointerdown',function ligaSom(){
+  Som.acordar();
+  document.removeEventListener('pointerdown',ligaSom);
+});
 document.getElementById('in-nome').addEventListener('keydown',ev=>{
   if(ev.key==='Enter') salvarNome();
 });

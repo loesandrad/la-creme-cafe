@@ -117,7 +117,31 @@ button{font-family:inherit;cursor:pointer;border:none}
 .vas{position:relative;line-height:0}
 .vas img,.vas svg{width:100%;height:auto;display:block}
 .dentro{position:absolute;overflow:hidden}
-.dentro i{position:absolute;left:0;right:0;display:block;opacity:.93}
+/* cada camada: cor cheia, com um leve degradê para não parecer papel */
+.dentro .camada{
+  position:absolute;left:-2%;right:-2%;display:block;
+  background:linear-gradient(180deg,
+    color-mix(in srgb, var(--cor) 86%, white) 0%,
+    var(--cor) 26%, color-mix(in srgb, var(--cor) 92%, black) 100%);
+  animation:enche .55s cubic-bezier(.3,1.1,.5,1) both;
+}
+/* a de cima ganha SUPERFÍCIE: uma curva clara, como líquido parado */
+.dentro .camada.topo::after{
+  content:'';position:absolute;left:0;right:0;top:-5px;height:11px;
+  border-radius:50%;
+  background:color-mix(in srgb, var(--cor) 72%, white);
+  animation:ondula 2.6s ease-in-out infinite;
+}
+@keyframes enche{ from{height:0 !important} }
+@keyframes ondula{
+  0%,100%{transform:translateY(0) scaleX(1)}
+  50%{transform:translateY(1.5px) scaleX(1.03)}
+}
+/* navegador sem color-mix continua funcionando, só sem o degradê */
+@supports not (background: color-mix(in srgb, red 50%, white)){
+  .dentro .camada{background:var(--cor)}
+  .dentro .camada.topo::after{background:#fff;opacity:.3}
+}
 .item img{width:72px;height:72px;object-fit:contain;pointer-events:none;
   filter:drop-shadow(0 4px 5px rgba(0,0,0,.3))}
 #centro .vas{width:min(30vw,236px)}
@@ -376,10 +400,10 @@ const FUNDO='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAQDAwQDAwQE
    estar enchendo a vasilha de verdade.
    `clip` desenha o formato: o filtro e um funil, o porta-filtro e um circulo. */
 const INTERIOR={
- filtro:{x:21,y:25,l:55,a:37,clip:'polygon(0% 0%, 100% 0%, 60% 100%, 40% 100%)'},
+ filtro:{x:18,y:24,l:60,a:38,clip:'polygon(0% 0%, 100% 0%, 60% 100%, 40% 100%)'},
  porta: {x:10,y:16,l:40,a:32,clip:'ellipse(50% 50% at 50% 50%)'},
- jarra: {x:20,y:31,l:52,a:49,clip:'polygon(3% 0%, 100% 0%, 93% 100%, 10% 100%)'},
- copo:  {x:22,y:33,l:52,a:30,clip:'polygon(0% 0%, 100% 0%, 86% 100%, 14% 100%)'},
+ jarra: {x:15,y:30,l:52,a:50,clip:'polygon(6% 0%, 100% 0%, 93% 100%, 14% 100%)'},
+ copo:  {x:18,y:32,l:60,a:32,clip:'polygon(2% 0%, 100% 0%, 85% 100%, 15% 100%)'},
  moedor:{x:28,y:57,l:30,a:15,clip:'inset(0 round 7px)'},
 };
 
@@ -810,23 +834,60 @@ function figura(n,classe){
 }
 function miniVasilha(n){ return figura(n); }
 
-/* a vasilha COM conteudo: a figura, e por cima dela um recorte com as camadas */
+/* A vasilha COM conteúdo dentro.
+
+   Três coisas acontecem aqui, e cada uma conserta um problema que apareceu
+   no tablet (Luiz, 14/11):
+
+   1. PROPORÇÃO — se a soma das camadas passar de 100% do espaço interno,
+      todas encolhem juntas. Antes a última transbordava e sumia cortada.
+   2. NÃO ESCAPA — além do recorte do formato, o preenchimento é MASCARADO
+      pelo próprio PNG do objeto. Onde o desenho é transparente, a cor não
+      aparece. Assim nunca sobra tinta fora da xícara, por mais grosseira
+      que seja a minha medida do interior.
+   3. ENCHE — a camada nova cresce de baixo para cima em vez de surgir
+      pronta, e a superfície tem curva e brilho, para parecer líquido e
+      não barra. */
 function vasilhaCheia(n,camadas){
   const I=INTERIOR[n];
   let dentro='';
   if(I && camadas.length){
+    // 1. proporção: nada passa do espaço que existe
+    const soma=camadas.reduce((a,c)=>a+c.alt,0);
+    const fator = soma>1 ? 1/soma : 1;
+
     let base=0;
-    const pedacos=camadas.map(c=>{
-      const h=Math.min(100,Math.max(6,c.alt*100));
+    const pedacos=camadas.map((c,k)=>{
+      const h=Math.max(5,c.alt*fator*100);
       const b=base; base+=h;
-      return '<i style="bottom:'+b+'%;height:'+h+'%;background:'+c.cor+'"></i>';
+      const topo = k===camadas.length-1;      // só o de cima ganha superfície
+      return '<i class="camada'+(topo?' topo':'')+'" style="bottom:'+b+
+        '%;height:'+h+'%;--cor:'+c.cor+'"></i>';
     }).join('');
+
+    // 2. a máscara: o PNG do objeto, alinhado ao recorte
+    const mascara = IMG[n]
+      ? 'url('+IMG[n]+')' : 'none';
+    /* ⚠️ posição em % no CSS NÃO é deslocamento: `P%` alinha o ponto P% da
+       imagem com o ponto P% da caixa. Então o deslocamento que eu quero,
+       -I.x da largura total, vira P = I.x / (100 - I.l). Com a conta errada
+       (um simples -I.x/I.l) a máscara saía do lugar e apagava tudo. */
+    const mSize = (100/I.l*100).toFixed(1)+'% '+(100/I.a*100).toFixed(1)+'%';
+    const px = I.l>=100 ? 0 : I.x/(100-I.l)*100;
+    const py = I.a>=100 ? 0 : I.y/(100-I.a)*100;
+    const mPos  = px.toFixed(1)+'% '+py.toFixed(1)+'%';
+
     dentro='<div class="dentro" style="left:'+I.x+'%;top:'+I.y+'%;width:'+I.l+
-      '%;height:'+I.a+'%;clip-path:'+I.clip+';-webkit-clip-path:'+I.clip+'">'+
+      '%;height:'+I.a+'%;clip-path:'+I.clip+';-webkit-clip-path:'+I.clip+
+      ';-webkit-mask-image:'+mascara+';mask-image:'+mascara+
+      ';-webkit-mask-size:'+mSize+';mask-size:'+mSize+
+      ';-webkit-mask-position:'+mPos+';mask-position:'+mPos+
+      ';-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat">'+
       pedacos+'</div>';
   }
   return '<div class="vas">'+figura(n)+dentro+'</div>';
 }
+
 
 /* Desenha a vasilha do centro COM as camadas dentro dela. É isto que dá a
    sensação do Sara's: o conteúdo aparece empilhando lá dentro. */
@@ -835,8 +896,11 @@ function desenharCentro(){
   // ⚠️ a fumaça mora dentro do #centro; guardar antes de trocar o conteúdo,
   //    senão ela é apagada a cada redesenho e nunca aparece.
   const fum=document.getElementById('fumaca');
+  const acabou = S.bebida && S.etapa>=RECEITAS[S.bebida].etapas.length;
   if(!S.centro){
-    c.innerHTML='<div class="vazio-centro">traga uma vasilha<br>para cá</div>';
+    // ⚠️ com a receita pronta, pedir uma vasilha confunde — a bancada fica limpa
+    c.innerHTML = acabou ? '' :
+      '<div class="vazio-centro">traga uma vasilha<br>para cá</div>';
   }else{
     c.innerHTML=vasilhaCheia(S.centro,S.camadasCentro)+
       '<div class="rot">'+(ROT[S.centro]||'')+'</div>';
@@ -1056,31 +1120,48 @@ function errar(el){
   aviso('Esse não é o passo agora');
 }
 
-/* --- segurar --- */
+/* --- segurar ---
+   ⛔⛔ NÃO usar requestAnimationFrame para CONCLUIR a etapa (Luiz, 14/11).
+   Medido: em certos navegadores e no modo de economia do tablet o rAF
+   simplesmente NÃO RODA — zero quadros em 900ms. Como era ele que enchia a
+   barra e fechava a etapa, quem joga segurava o dedo para sempre e nada
+   acontecia. Isso travaria o jogo no meio da apresentação.
+
+   Agora são duas coisas independentes:
+     · a CONCLUSÃO é um setTimeout, que o navegador sempre executa
+     · a BARRA é uma transição de CSS, que roda no compositor e não
+       depende de nenhum laço em JavaScript
+   Se a animação engasgar, a etapa fecha do mesmo jeito. */
 function comecarSegurar(e){
+  if(segurar) return;                       // já está segurando
   const barra=document.getElementById('barra');
+  const i=barra.querySelector('i');
   barra.classList.add('on');
-  // o som acompanha a ação: o moedor ronca enquanto você segura
   if(e.som) Som.toca(e.som);
   if(e.quente) fumegar(true);
-  const i=barra.querySelector('i'), t0=performance.now();
-  segurar={raf:0};
-  (function anda(){
-    if(!segurar) return;
-    const pct=Math.min(100,(performance.now()-t0)/e.ms*100);
-    i.style.width=pct+'%';
-    if(pct>=100){barra.classList.remove('on');i.style.width='0%';
-      segurar=null;concluirEtapa();return;}
-    segurar.raf=requestAnimationFrame(anda);
-  })();
+
+  i.style.transition='none';
+  i.style.width='0%';
+  void i.offsetWidth;                        // obriga o navegador a aplicar o 0%
+  i.style.transition='width '+e.ms+'ms linear';
+  i.style.width='100%';
+
+  segurar={ relogio: setTimeout(()=>{
+    segurar=null;
+    barra.classList.remove('on');
+    i.style.transition='none'; i.style.width='0%';
+    concluirEtapa();
+  }, e.ms) };
 }
 function cancelarSegurar(){
   if(!segurar) return;
-  cancelAnimationFrame(segurar.raf);
-  const b=document.getElementById('barra');
-  b.classList.remove('on');b.querySelector('i').style.width='0%';
+  clearTimeout(segurar.relogio);
   segurar=null;
+  const b=document.getElementById('barra'), i=b.querySelector('i');
+  b.classList.remove('on');
+  i.style.transition='none'; i.style.width='0%';
 }
+
 
 /* ==========================================================================
    11. FIM

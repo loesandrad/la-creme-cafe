@@ -1,0 +1,959 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>La Crème Café</title>
+<style>
+/* ============================================================
+   LA CRÈME CAFÉ — DESAFIO DOS BARISTAS
+   Arquivo único, sem dependência externa. Abre do próprio
+   tablet, sem servidor e sem internet.
+   ============================================================ */
+:root{
+  --creme:#FFF0DC; --cafe:#713E20; --verde:#456342;
+  --caramelo:#D9A66B; --bege:#E9CDAA;
+  --cafe-claro:#8d5733; --erro:#A8322A;
+  --sombra:0 6px 18px rgba(113,62,32,.18);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;overscroll-behavior:none}
+body{
+  font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+  background:var(--creme); color:var(--cafe);
+  user-select:none; -webkit-user-select:none;
+  touch-action:manipulation;
+}
+button{font-family:inherit;cursor:pointer;border:none}
+
+/* ---------- telas ---------- */
+.tela{
+  position:fixed; inset:0; display:none;
+  flex-direction:column; align-items:center; justify-content:center;
+  padding:16px; gap:14px;
+}
+.tela.ativa{display:flex}
+
+/* ---------- marca ---------- */
+.marca{display:flex;flex-direction:column;align-items:center;gap:2px}
+.marca .logo{width:132px;height:132px}
+.marca h1{
+  margin:0; font-size:clamp(26px,5vw,42px); letter-spacing:.06em;
+  font-weight:800;
+}
+.marca h2{
+  margin:0; font-size:clamp(12px,2.2vw,17px); letter-spacing:.34em;
+  font-weight:600; color:var(--verde); text-transform:uppercase;
+}
+
+/* ---------- botões ---------- */
+.btn{
+  background:var(--cafe); color:var(--creme);
+  font-size:clamp(16px,2.4vw,21px); font-weight:700;
+  padding:16px 34px; border-radius:14px; min-width:220px;
+  box-shadow:var(--sombra); transition:transform .08s, filter .15s;
+}
+.btn:active{transform:scale(.96)}
+.btn.verde{background:var(--verde)}
+.btn.claro{background:var(--bege);color:var(--cafe)}
+.btn.fantasma{background:transparent;color:var(--cafe);box-shadow:none;
+  border:2px solid var(--caramelo);min-width:0;padding:12px 24px}
+.btn[disabled]{opacity:.42;pointer-events:none}
+
+/* ---------- nome ---------- */
+.campo{
+  font-family:inherit; font-size:24px; text-align:center;
+  padding:14px 18px; border-radius:12px; width:min(420px,86vw);
+  border:3px solid var(--caramelo); background:#fff; color:var(--cafe);
+}
+.campo:focus{outline:none;border-color:var(--verde)}
+
+/* ---------- cartões de bebida ---------- */
+.bebidas{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+.bebida{
+  background:#fff; border:3px solid var(--bege); border-radius:18px;
+  padding:14px 12px 16px; width:min(210px,29vw);
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  box-shadow:var(--sombra); transition:transform .1s,border-color .15s;
+}
+.bebida:active{transform:scale(.97)}
+.bebida.sel{border-color:var(--verde);background:#F6FAF5}
+.bebida svg{width:84px;height:84px}
+.bebida b{font-size:16px;text-align:center;line-height:1.2}
+.bebida small{color:var(--cafe-claro);font-size:12.5px;text-align:center}
+
+/* ---------- mesa de jogo ---------- */
+#jogo{padding:0;display:none}
+#jogo.ativa{display:grid}
+#jogo{
+  grid-template-columns:1fr 300px; grid-template-rows:auto 1fr;
+  gap:0; align-items:stretch; justify-content:stretch;
+}
+.topo{
+  grid-column:1/-1; display:flex; align-items:center; gap:14px;
+  padding:8px 16px; background:var(--cafe); color:var(--creme);
+}
+.topo .quem{font-weight:700;font-size:17px;flex:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topo .logo{width:34px;height:34px;flex:none}
+.crono{
+  font-variant-numeric:tabular-nums; font-size:30px; font-weight:800;
+  letter-spacing:.02em; flex:none;
+}
+.palco{
+  position:relative; background:
+    radial-gradient(circle at 50% 0%, #fff8ee 0%, var(--creme) 62%);
+  overflow:hidden; display:flex; flex-direction:column;
+}
+.instrucao{
+  text-align:center; font-size:clamp(15px,2.1vw,20px); font-weight:700;
+  padding:10px 14px; color:var(--verde); min-height:44px;
+}
+.instrucao .passo{display:block;font-size:12px;letter-spacing:.2em;
+  color:var(--cafe-claro);font-weight:600;text-transform:uppercase}
+.area{flex:1;position:relative}
+
+/* peça (ingrediente ou equipamento) */
+.peca{
+  position:absolute; width:106px; height:106px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px; touch-action:none;
+}
+.peca svg{width:74px;height:74px;pointer-events:none;
+  filter:drop-shadow(0 4px 6px rgba(113,62,32,.22))}
+.peca span{font-size:11.5px;font-weight:700;color:var(--cafe);
+  pointer-events:none;text-align:center;line-height:1.1}
+.peca.arrastavel{cursor:grab}
+.peca.alvo svg{filter:drop-shadow(0 0 0 rgba(0,0,0,0))}
+.peca.pronto{animation:pulsa 1.4s ease-in-out infinite}
+.peca.quente{outline:4px dashed var(--verde);outline-offset:6px;border-radius:16px}
+.peca.errou{animation:treme .32s}
+.peca.voando{transition:left .22s ease,top .22s ease}
+@keyframes pulsa{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+@keyframes treme{0%,100%{transform:translateX(0)}
+  25%{transform:translateX(-9px)}75%{transform:translateX(9px)}}
+
+/* barra de segurar */
+.barra{
+  position:absolute; left:50%; transform:translateX(-50%);
+  width:150px; height:16px; border-radius:10px;
+  background:rgba(113,62,32,.16); overflow:hidden; display:none;
+}
+.barra.on{display:block}
+.barra i{display:block;height:100%;width:0%;background:var(--verde);
+  border-radius:10px;transition:width .08s linear}
+
+/* ---------- painel da receita ---------- */
+.painel{
+  background:#fff; border-left:4px solid var(--bege);
+  padding:12px 14px; overflow-y:auto; display:flex;
+  flex-direction:column; gap:10px;
+}
+.painel h3{margin:0;font-size:13px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--cafe-claro)}
+.painel .nomebebida{font-size:19px;font-weight:800;margin:-4px 0 2px}
+.etapas{list-style:none;margin:0;padding:0;display:flex;
+  flex-direction:column;gap:5px}
+.etapas li{
+  font-size:13.5px; line-height:1.3; padding:7px 9px; border-radius:9px;
+  background:#FBF6EE; color:var(--cafe-claro); display:flex; gap:7px;
+}
+.etapas li .n{font-weight:800;flex:none;width:17px}
+.etapas li.atual{background:var(--bege);color:var(--cafe);font-weight:700}
+.etapas li.ok{background:#EAF3E8;color:var(--verde);
+  text-decoration:line-through;text-decoration-thickness:1.5px}
+.btn-fim{margin-top:auto}
+
+/* ---------- resultado ---------- */
+.tempo-grande{
+  font-size:clamp(46px,11vw,96px); font-weight:800; line-height:1;
+  font-variant-numeric:tabular-nums; color:var(--verde);
+}
+.placar{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;
+  width:min(680px,94vw)}
+.placar .lado{
+  flex:1 1 200px; background:#fff; border-radius:16px; padding:14px;
+  text-align:center; border:3px solid var(--bege); box-shadow:var(--sombra);
+}
+.placar .lado.venceu{border-color:var(--verde);background:#F4FAF3}
+.placar .lado b{display:block;font-size:17px;margin-bottom:4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.placar .lado .t{font-size:33px;font-weight:800;
+  font-variant-numeric:tabular-nums}
+.coroa{font-size:26px}
+
+/* ---------- ranking ---------- */
+.rank{width:min(620px,94vw);background:#fff;border-radius:16px;
+  box-shadow:var(--sombra);overflow:hidden;max-height:52vh;overflow-y:auto}
+.rank table{width:100%;border-collapse:collapse;font-size:15px}
+.rank th{background:var(--cafe);color:var(--creme);padding:9px 10px;
+  font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+  position:sticky;top:0}
+.rank td{padding:9px 10px;border-bottom:1px solid #F0E6D8}
+.rank tr:last-child td{border-bottom:none}
+.rank td.pos{font-weight:800;width:40px;color:var(--caramelo)}
+.rank td.tp{font-variant-numeric:tabular-nums;font-weight:700;
+  text-align:right;white-space:nowrap}
+.rank .vazio{padding:26px;text-align:center;color:var(--cafe-claro)}
+
+/* ---------- contagem ---------- */
+.contagem{font-size:clamp(90px,26vw,220px);font-weight:800;
+  color:var(--verde);line-height:1;animation:zoom .9s ease-out}
+@keyframes zoom{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* ---------- aviso / toast ---------- */
+.aviso{
+  position:fixed; left:50%; bottom:22px; transform:translateX(-50%);
+  background:var(--erro); color:#fff; padding:11px 22px; border-radius:11px;
+  font-weight:700; font-size:16px; box-shadow:var(--sombra);
+  opacity:0; pointer-events:none; transition:opacity .2s; z-index:50;
+  max-width:92vw; text-align:center;
+}
+.aviso.on{opacity:1}
+.aviso.bom{background:var(--verde)}
+
+/* ---------- como jogar ---------- */
+.ajuda{width:min(640px,94vw);background:#fff;border-radius:16px;padding:18px 22px;
+  box-shadow:var(--sombra);max-height:66vh;overflow-y:auto}
+.ajuda ol{margin:0;padding-left:22px;line-height:1.65;font-size:16px}
+.ajuda li{margin-bottom:9px}
+
+/* ---------- retrato ---------- */
+#girar{display:none;position:fixed;inset:0;background:var(--cafe);
+  color:var(--creme);flex-direction:column;align-items:center;
+  justify-content:center;gap:16px;z-index:99;text-align:center;padding:24px}
+@media (orientation:portrait) and (max-width:900px){
+  #girar{display:flex}
+}
+</style>
+</head>
+<body>
+
+<!-- ============================ TELA INICIAL ============================ -->
+<section class="tela ativa" id="t-inicio">
+  <div class="marca">
+    <svg class="logo" viewBox="0 0 100 100" id="logo-svg"></svg>
+    <h1>LA CRÈME CAFÉ</h1>
+    <h2>Desafio dos Baristas</h2>
+  </div>
+  <button class="btn" onclick="irPara('t-nome')">COMEÇAR</button>
+  <button class="btn claro" onclick="abrirRanking()">RANKING</button>
+  <button class="btn fantasma" onclick="irPara('t-ajuda')">COMO JOGAR</button>
+</section>
+
+<!-- ============================ NOME ============================ -->
+<section class="tela" id="t-nome">
+  <div class="marca"><svg class="logo" viewBox="0 0 100 100" data-logo></svg></div>
+  <h2 style="margin:0;font-size:22px">Qual é o seu nome, barista?</h2>
+  <input class="campo" id="in-nome" maxlength="18" placeholder="seu nome"
+         autocomplete="off" autocorrect="off" spellcheck="false">
+  <button class="btn" id="bt-nome" onclick="salvarNome()">CONTINUAR</button>
+  <button class="btn fantasma" onclick="irPara('t-inicio')">voltar</button>
+</section>
+
+<!-- ============================ BEBIDA ============================ -->
+<section class="tela" id="t-bebida">
+  <h2 style="margin:0;font-size:22px" id="ola"></h2>
+  <p style="margin:0;color:var(--cafe-claro);font-size:15px">
+    Escolha a bebida — os dois jogadores precisam montar a mesma.</p>
+  <div class="bebidas" id="lista-bebidas"></div>
+  <button class="btn" id="bt-bebida" disabled onclick="comecarPartida()">
+    ESTOU PRONTO</button>
+  <button class="btn fantasma" onclick="irPara('t-nome')">voltar</button>
+</section>
+
+<!-- ============================ CONTAGEM ============================ -->
+<section class="tela" id="t-contagem">
+  <div class="contagem" id="num-contagem">3</div>
+</section>
+
+<!-- ============================ JOGO ============================ -->
+<section class="tela" id="jogo">
+  <header class="topo">
+    <svg class="logo" viewBox="0 0 100 100" data-logo></svg>
+    <span class="quem" id="jg-nome"></span>
+    <span class="crono" id="jg-crono">00:00.0</span>
+  </header>
+  <div class="palco">
+    <div class="instrucao" id="jg-instrucao">
+      <span class="passo" id="jg-passo"></span>
+      <span id="jg-texto"></span>
+    </div>
+    <div class="area" id="area">
+      <div class="barra" id="barra"><i></i></div>
+    </div>
+  </div>
+  <aside class="painel">
+    <h3>Receita</h3>
+    <div class="nomebebida" id="jg-bebida"></div>
+    <ol class="etapas" id="jg-etapas"></ol>
+    <button class="btn verde btn-fim" id="bt-finalizar" disabled
+            onclick="finalizar()">FINALIZEI</button>
+  </aside>
+</section>
+
+<!-- ============================ RESULTADO ============================ -->
+<section class="tela" id="t-fim">
+  <h2 style="margin:0;font-size:clamp(22px,4vw,34px)" id="fim-titulo"></h2>
+  <div class="tempo-grande" id="fim-tempo"></div>
+  <p style="margin:0;color:var(--cafe-claro)" id="fim-sub"></p>
+  <div class="placar" id="fim-placar"></div>
+  <button class="btn" onclick="irPara('t-nome')">JOGAR DE NOVO</button>
+  <button class="btn claro" onclick="abrirRanking()">VER RANKING</button>
+  <button class="btn fantasma" onclick="irPara('t-inicio')">menu inicial</button>
+</section>
+
+<!-- ============================ RANKING ============================ -->
+<section class="tela" id="t-rank">
+  <h2 style="margin:0;font-size:26px">Ranking</h2>
+  <div id="rank-filtro" style="display:flex;gap:8px;flex-wrap:wrap;
+       justify-content:center"></div>
+  <div class="rank" id="rank-box"></div>
+  <button class="btn fantasma" onclick="irPara('t-inicio')">voltar</button>
+</section>
+
+<!-- ============================ COMO JOGAR ============================ -->
+<section class="tela" id="t-ajuda">
+  <h2 style="margin:0;font-size:26px">Como jogar</h2>
+  <div class="ajuda">
+    <ol>
+      <li>Cada jogador digita o <b>nome</b> no seu tablet.</li>
+      <li>Os dois escolhem <b>a mesma bebida</b>.</li>
+      <li>Depois da contagem, o <b>cronômetro começa</b>.</li>
+      <li>A faixa verde no alto diz o que fazer agora.
+          <b>Arraste com o dedo</b> o item certo até o lugar certo.</li>
+      <li>Em moer, extrair e vaporizar, <b>segure o dedo</b> no equipamento
+          até a barra encher.</li>
+      <li>Errou? Nada se perde — o item volta e você tenta de novo.</li>
+      <li>Terminou tudo, aperte <b>FINALIZEI</b>.
+          Vence quem fizer no <b>menor tempo</b>.</li>
+    </ol>
+  </div>
+  <button class="btn fantasma" onclick="irPara('t-inicio')">voltar</button>
+</section>
+
+<div class="aviso" id="aviso"></div>
+<div id="girar">
+  <svg class="logo" viewBox="0 0 100 100" data-logo style="width:90px"></svg>
+  <h2 style="margin:0">Vire o tablet na horizontal</h2>
+  <p style="margin:0;opacity:.8">O desafio foi feito para a tela deitada.</p>
+</div>
+
+<script>
+/* ==========================================================================
+   1. DESENHOS — tudo em SVG escrito aqui dentro, para nada depender de
+      arquivo externo nem de internet.
+   ========================================================================== */
+const ART = {
+  logo:`<circle cx="50" cy="50" r="47" fill="#713E20"/>
+    <circle cx="50" cy="50" r="40" fill="none" stroke="#E9CDAA" stroke-width="2"/>
+    <path d="M32 40h30v16a15 15 0 0 1-15 15h0a15 15 0 0 1-15-15z" fill="#FFF0DC"/>
+    <path d="M62 44h5a7 7 0 0 1 0 14h-5" fill="none" stroke="#FFF0DC" stroke-width="4"/>
+    <path d="M28 76h40" stroke="#D9A66B" stroke-width="4" stroke-linecap="round"/>
+    <path d="M41 32c0-4 4-4 4-8M50 30c0-4 4-4 4-8" stroke="#D9A66B"
+      stroke-width="3" stroke-linecap="round" fill="none"/>`,
+
+  graos:`<ellipse cx="34" cy="44" rx="17" ry="22" fill="#5C3317"
+      transform="rotate(-22 34 44)"/>
+    <path d="M34 24c-6 10-6 30 0 40" stroke="#D9A66B" stroke-width="3" fill="none"
+      transform="rotate(-22 34 44)"/>
+    <ellipse cx="62" cy="58" rx="17" ry="22" fill="#6b3d1e"
+      transform="rotate(20 62 58)"/>
+    <path d="M62 38c-6 10-6 30 0 40" stroke="#D9A66B" stroke-width="3" fill="none"
+      transform="rotate(20 62 58)"/>`,
+
+  moedor:`<rect x="24" y="14" width="52" height="26" rx="5" fill="#456342"/>
+    <rect x="30" y="20" width="40" height="13" rx="3" fill="#2f4630"/>
+    <path d="M30 40h40l-6 34a6 6 0 0 1-6 5H42a6 6 0 0 1-6-5z" fill="#713E20"/>
+    <rect x="36" y="52" width="28" height="4" rx="2" fill="#D9A66B"/>
+    <circle cx="50" cy="27" r="5" fill="#D9A66B"/>`,
+
+  moido:`<path d="M26 46h48l-5 30a6 6 0 0 1-6 5H37a6 6 0 0 1-6-5z" fill="#E9CDAA"/>
+    <ellipse cx="50" cy="46" rx="24" ry="8" fill="#6b4226"/>
+    <circle cx="42" cy="44" r="2.4" fill="#4a2d19"/>
+    <circle cx="52" cy="47" r="2.4" fill="#4a2d19"/>
+    <circle cx="59" cy="43" r="2.4" fill="#4a2d19"/>
+    <circle cx="47" cy="40" r="2" fill="#4a2d19"/>`,
+
+  filtro:`<path d="M24 30h52L58 78H42z" fill="#FFF8EC" stroke="#D9A66B"
+      stroke-width="3"/>
+    <path d="M24 30h52" stroke="#D9A66B" stroke-width="4" stroke-linecap="round"/>
+    <path d="M34 42h32M38 54h24" stroke="#E9CDAA" stroke-width="3"
+      stroke-linecap="round"/>`,
+
+  chaleira:`<path d="M28 44h40a6 6 0 0 1 6 6v20a10 10 0 0 1-10 10H32a10 10 0 0 1-10-10V50a6 6 0 0 1 6-6z"
+      fill="#456342"/>
+    <path d="M68 50l16-14" stroke="#456342" stroke-width="7" stroke-linecap="round"/>
+    <rect x="40" y="30" width="20" height="8" rx="4" fill="#2f4630"/>
+    <path d="M44 24c0-5 6-5 6-10M54 22c0-5 6-5 6-10" stroke="#D9A66B"
+      stroke-width="3" fill="none" stroke-linecap="round"/>`,
+
+  maquina:`<rect x="18" y="16" width="64" height="46" rx="6" fill="#713E20"/>
+    <rect x="26" y="24" width="48" height="18" rx="3" fill="#8d5733"/>
+    <circle cx="35" cy="33" r="4" fill="#D9A66B"/>
+    <circle cx="48" cy="33" r="4" fill="#456342"/>
+    <rect x="40" y="62" width="20" height="9" rx="2" fill="#5C3317"/>
+    <rect x="22" y="78" width="56" height="7" rx="3" fill="#8d5733"/>
+    <path d="M46 71v7M54 71v7" stroke="#D9A66B" stroke-width="3"/>`,
+
+  portafiltro:`<circle cx="50" cy="40" r="22" fill="#9a9a9a"/>
+    <circle cx="50" cy="40" r="16" fill="#6b4226"/>
+    <rect x="46" y="58" width="8" height="26" rx="4" fill="#713E20"/>
+    <rect x="42" y="80" width="16" height="7" rx="3" fill="#5C3317"/>`,
+
+  tamper:`<rect x="43" y="16" width="14" height="30" rx="6" fill="#713E20"/>
+    <ellipse cx="50" cy="52" rx="26" ry="9" fill="#9a9a9a"/>
+    <rect x="24" y="52" width="52" height="12" rx="4" fill="#808080"/>
+    <ellipse cx="50" cy="64" rx="26" ry="9" fill="#6e6e6e"/>`,
+
+  leite:`<path d="M34 28h32v44a10 10 0 0 1-10 10H44a10 10 0 0 1-10-10z"
+      fill="#FFFDF8" stroke="#D9A66B" stroke-width="3"/>
+    <path d="M34 28l8-12h16l8 12" fill="#FFFDF8" stroke="#D9A66B" stroke-width="3"/>
+    <rect x="40" y="50" width="20" height="22" rx="3" fill="#F2F6FA"/>`,
+
+  jarra:`<path d="M30 30h36v38a12 12 0 0 1-12 12H42a12 12 0 0 1-12-12z"
+      fill="#c9ced3" stroke="#9aa0a6" stroke-width="2"/>
+    <path d="M66 40h8a7 7 0 0 1 0 14h-8" fill="none" stroke="#9aa0a6" stroke-width="4"/>
+    <path d="M30 30l-9-9" stroke="#9aa0a6" stroke-width="5" stroke-linecap="round"/>
+    <rect x="36" y="52" width="24" height="24" rx="3" fill="#FFFDF8"/>`,
+
+  vapor:`<rect x="44" y="12" width="12" height="18" rx="3" fill="#713E20"/>
+    <rect x="46" y="28" width="8" height="34" rx="3" fill="#9a9a9a"/>
+    <circle cx="50" cy="64" r="6" fill="#6e6e6e"/>
+    <path d="M38 76c4-5 8-2 12-7M52 80c4-5 8-2 12-7" stroke="#cfd6dd"
+      stroke-width="4" fill="none" stroke-linecap="round"/>`,
+
+  espuma:`<path d="M28 44h44l-5 30a6 6 0 0 1-6 5H39a6 6 0 0 1-6-5z" fill="#FFFDF8"/>
+    <circle cx="40" cy="42" r="9" fill="#fff"/><circle cx="52" cy="38" r="11" fill="#fff"/>
+    <circle cx="63" cy="43" r="8" fill="#fff"/>
+    <ellipse cx="50" cy="46" rx="22" ry="7" fill="#fff"/>`,
+
+  xicara:`<path d="M28 38h42v20a21 21 0 0 1-21 21h0a21 21 0 0 1-21-21z"
+      fill="#FFFDF8" stroke="#D9A66B" stroke-width="3"/>
+    <path d="M70 44h7a9 9 0 0 1 0 18h-7" fill="none" stroke="#D9A66B" stroke-width="4"/>
+    <ellipse cx="49" cy="38" rx="21" ry="6" fill="#E9CDAA"/>
+    <rect x="22" y="82" width="54" height="6" rx="3" fill="#E9CDAA"/>`,
+
+  /* bebidas prontas (cartões e resultado) */
+  b_preto:`<path d="M28 38h42v20a21 21 0 0 1-21 21h0a21 21 0 0 1-21-21z"
+      fill="#FFFDF8" stroke="#D9A66B" stroke-width="3"/>
+    <path d="M70 44h7a9 9 0 0 1 0 18h-7" fill="none" stroke="#D9A66B" stroke-width="4"/>
+    <ellipse cx="49" cy="38" rx="21" ry="6" fill="#4a2d19"/>
+    <rect x="22" y="82" width="54" height="6" rx="3" fill="#E9CDAA"/>
+    <path d="M42 24c0-5 5-5 5-10M54 22c0-5 5-5 5-10" stroke="#D9A66B"
+      stroke-width="3" fill="none" stroke-linecap="round"/>`,
+  b_leite:`<path d="M28 38h42v20a21 21 0 0 1-21 21h0a21 21 0 0 1-21-21z"
+      fill="#FFFDF8" stroke="#D9A66B" stroke-width="3"/>
+    <path d="M70 44h7a9 9 0 0 1 0 18h-7" fill="none" stroke="#D9A66B" stroke-width="4"/>
+    <ellipse cx="49" cy="38" rx="21" ry="6" fill="#C9norm"/>
+    <ellipse cx="49" cy="38" rx="21" ry="6" fill="#c69a6d"/>
+    <rect x="22" y="82" width="54" height="6" rx="3" fill="#E9CDAA"/>`,
+  b_capp:`<path d="M28 38h42v20a21 21 0 0 1-21 21h0a21 21 0 0 1-21-21z"
+      fill="#FFFDF8" stroke="#D9A66B" stroke-width="3"/>
+    <path d="M70 44h7a9 9 0 0 1 0 18h-7" fill="none" stroke="#D9A66B" stroke-width="4"/>
+    <ellipse cx="49" cy="38" rx="21" ry="6" fill="#f3e6d4"/>
+    <path d="M49 32c-5 0-8 3-8 6s3 6 8 6 8-3 8-6-3-6-8-6z" fill="#c69a6d"/>
+    <rect x="22" y="82" width="54" height="6" rx="3" fill="#E9CDAA"/>`,
+};
+function svg(nome,extra){
+  return '<svg viewBox="0 0 100 100" '+(extra||'')+'>'+(ART[nome]||'')+'</svg>';
+}
+
+/* ==========================================================================
+   2. RECEITAS — dado, não código. Para acrescentar uma bebida nova basta
+      escrever outra entrada aqui; nada da lógica precisa mudar.
+
+      tipo 'arrastar' : leva a peça `item` até a peça `alvo`
+      tipo 'segurar'  : segura o dedo em `alvo` por `ms` milissegundos
+      `vira`          : a peça `alvo` se transforma nesse desenho/rótulo
+      `remove`        : some da bancada depois da etapa
+   ========================================================================== */
+const RECEITAS = {
+  preto:{
+    nome:'Café preto simples', arte:'b_preto',
+    resumo:'15 g de café · 250 ml de água · coado',
+    pecas:['graos','moedor','filtro','chaleira','xicara'],
+    etapas:[
+      {t:'arrastar',item:'graos',alvo:'moedor',txt:'Arraste os grãos até o moedor'},
+      {t:'segurar',alvo:'moedor',ms:2200,txt:'Segure no moedor para moer o café',
+       vira:{peca:'moedor',arte:'moido',rotulo:'café moído'}},
+      {t:'arrastar',item:'moedor',alvo:'filtro',txt:'Leve o café moído até o filtro',
+       remove:true},
+      {t:'arrastar',item:'chaleira',alvo:'filtro',txt:'Despeje a água quente no filtro'},
+      {t:'segurar',alvo:'filtro',ms:2600,txt:'Segure no filtro e espere a extração'},
+      {t:'arrastar',item:'filtro',alvo:'xicara',txt:'Sirva o café na xícara',
+       vira:{peca:'xicara',arte:'b_preto',rotulo:'café pronto'},remove:true},
+    ],
+  },
+  comleite:{
+    nome:'Café com leite', arte:'b_leite',
+    resumo:'100 ml de café coado · 100 ml de leite quente',
+    pecas:['graos','moedor','filtro','chaleira','leite','jarra','xicara'],
+    etapas:[
+      {t:'arrastar',item:'graos',alvo:'moedor',txt:'Arraste os grãos até o moedor'},
+      {t:'segurar',alvo:'moedor',ms:2200,txt:'Segure no moedor para moer o café',
+       vira:{peca:'moedor',arte:'moido',rotulo:'café moído'}},
+      {t:'arrastar',item:'moedor',alvo:'filtro',txt:'Leve o café moído até o filtro',
+       remove:true},
+      {t:'arrastar',item:'chaleira',alvo:'filtro',txt:'Despeje a água quente no filtro'},
+      {t:'segurar',alvo:'filtro',ms:2400,txt:'Segure no filtro e espere a extração'},
+      {t:'arrastar',item:'filtro',alvo:'xicara',txt:'Sirva o café na xícara',remove:true},
+      {t:'arrastar',item:'leite',alvo:'jarra',txt:'Coloque o leite na jarra',remove:true},
+      {t:'segurar',alvo:'jarra',ms:2200,txt:'Segure na jarra para aquecer o leite'},
+      {t:'arrastar',item:'jarra',alvo:'xicara',txt:'Junte o leite quente ao café',
+       vira:{peca:'xicara',arte:'b_leite',rotulo:'pronto'},remove:true},
+    ],
+  },
+  cappuccino:{
+    nome:'Cappuccino tradicional', arte:'b_capp',
+    resumo:'30 ml de espresso · 60 ml de leite · 60 ml de espuma',
+    pecas:['graos','moedor','portafiltro','tamper','maquina','leite','jarra',
+           'vapor','xicara'],
+    etapas:[
+      {t:'arrastar',item:'graos',alvo:'moedor',txt:'Arraste os grãos até o moedor'},
+      {t:'segurar',alvo:'moedor',ms:2400,txt:'Segure no moedor — moagem fina para espresso',
+       vira:{peca:'moedor',arte:'moido',rotulo:'café moído'}},
+      {t:'arrastar',item:'moedor',alvo:'portafiltro',txt:'Leve o café moído ao porta-filtro',
+       remove:true},
+      {t:'arrastar',item:'tamper',alvo:'portafiltro',txt:'Compacte o café com o tamper',
+       remove:true},
+      {t:'arrastar',item:'portafiltro',alvo:'maquina',
+       txt:'Encaixe o porta-filtro na máquina',remove:true},
+      {t:'segurar',alvo:'maquina',ms:2800,txt:'Segure na máquina para extrair o espresso'},
+      {t:'arrastar',item:'maquina',alvo:'xicara',txt:'Sirva o espresso na xícara'},
+      {t:'arrastar',item:'leite',alvo:'jarra',txt:'Coloque o leite na jarra',remove:true},
+      {t:'arrastar',item:'jarra',alvo:'vapor',txt:'Leve a jarra até o vaporizador'},
+      {t:'segurar',alvo:'vapor',ms:2600,txt:'Segure no vaporizador para vaporizar o leite',
+       vira:{peca:'vapor',arte:'espuma',rotulo:'leite e espuma'}},
+      {t:'arrastar',item:'vapor',alvo:'xicara',txt:'Despeje o leite vaporizado',
+       vira:{peca:'xicara',arte:'b_capp',rotulo:'cappuccino'},remove:true},
+    ],
+  },
+};
+const ROTULOS = {
+  graos:'grãos', moedor:'moedor', moido:'café moído', filtro:'filtro',
+  chaleira:'água quente', maquina:'máquina', portafiltro:'porta-filtro',
+  tamper:'tamper', leite:'leite', jarra:'jarra', vapor:'vaporizador',
+  espuma:'espuma', xicara:'xícara',
+};
+
+/* ==========================================================================
+   3. ESTADO
+   ========================================================================== */
+const S = {
+  nome:'', bebida:null, etapa:0, inicio:0, fim:0,
+  rodando:false, tick:null, pecas:{},
+};
+const CHAVE_RANK = 'lacreme.ranking.v1';
+const CHAVE_NOME = 'lacreme.nome';
+
+/* ==========================================================================
+   4. NAVEGAÇÃO
+   ========================================================================== */
+function irPara(id){
+  document.querySelectorAll('.tela').forEach(t=>t.classList.remove('ativa'));
+  document.getElementById(id).classList.add('ativa');
+  if(id==='t-nome'){
+    const i=document.getElementById('in-nome');
+    i.value = S.nome || localStorage.getItem(CHAVE_NOME) || '';
+    setTimeout(()=>i.focus(),120);
+  }
+  if(id==='t-bebida') montarBebidas();
+  if(id!=='jogo') pararCrono();
+}
+function aviso(txt,bom){
+  const a=document.getElementById('aviso');
+  a.textContent=txt; a.className='aviso on'+(bom?' bom':'');
+  clearTimeout(a._t); a._t=setTimeout(()=>a.className='aviso',1500);
+}
+
+/* ==========================================================================
+   5. NOME E ESCOLHA DA BEBIDA
+   ========================================================================== */
+function salvarNome(){
+  const v=document.getElementById('in-nome').value.trim();
+  if(v.length<2){ aviso('Escreva seu nome para continuar'); return; }
+  S.nome=v; localStorage.setItem(CHAVE_NOME,v);
+  document.getElementById('ola').textContent='Boa, '+v+'!';
+  irPara('t-bebida');
+}
+function montarBebidas(){
+  S.bebida=null;
+  document.getElementById('bt-bebida').disabled=true;
+  const box=document.getElementById('lista-bebidas');
+  box.innerHTML='';
+  Object.entries(RECEITAS).forEach(([id,r])=>{
+    const d=document.createElement('button');
+    d.className='bebida'; d.dataset.id=id;
+    d.innerHTML=svg(r.arte)+'<b>'+r.nome+'</b><small>'+r.resumo+'</small>';
+    d.onclick=()=>{
+      S.bebida=id;
+      box.querySelectorAll('.bebida').forEach(x=>x.classList.remove('sel'));
+      d.classList.add('sel');
+      document.getElementById('bt-bebida').disabled=false;
+    };
+    box.appendChild(d);
+  });
+}
+
+/* ==========================================================================
+   6. CONTAGEM E INÍCIO
+   ========================================================================== */
+function comecarPartida(){
+  if(!S.bebida) return;
+  irPara('t-contagem');
+  const el=document.getElementById('num-contagem');
+  let n=3;
+  el.textContent=n; el.style.animation='none'; void el.offsetWidth;
+  el.style.animation='';
+  const passo=setInterval(()=>{
+    n--;
+    if(n>0){ el.textContent=n; }
+    else if(n===0){ el.textContent='VALENDO!'; el.style.fontSize='clamp(48px,13vw,120px)'; }
+    else{
+      clearInterval(passo);
+      el.style.fontSize='';
+      montarMesa();
+    }
+    el.style.animation='none'; void el.offsetWidth; el.style.animation='';
+  },900);
+}
+
+/* ==========================================================================
+   7. A MESA
+   ========================================================================== */
+function montarMesa(){
+  const r=RECEITAS[S.bebida];
+  S.etapa=0; S.pecas={};
+  document.getElementById('jg-nome').textContent=S.nome;
+  document.getElementById('jg-bebida').textContent=r.nome;
+  document.getElementById('bt-finalizar').disabled=true;
+
+  // lista de etapas no painel
+  const ol=document.getElementById('jg-etapas'); ol.innerHTML='';
+  r.etapas.forEach((e,i)=>{
+    const li=document.createElement('li');
+    li.innerHTML='<span class="n">'+(i+1)+'</span><span>'+e.txt+'</span>';
+    li.id='et'+i; ol.appendChild(li);
+  });
+
+  // peças na bancada
+  const area=document.getElementById('area');
+  area.querySelectorAll('.peca').forEach(p=>p.remove());
+  const lista=r.pecas;
+  lista.forEach((nome,i)=>{
+    const p=document.createElement('div');
+    p.className='peca'; p.dataset.peca=nome;
+    p.innerHTML=svg(nome)+'<span>'+(ROTULOS[nome]||nome)+'</span>';
+    area.appendChild(p);
+    S.pecas[nome]=p;
+  });
+  posicionar(lista);
+  irPara('jogo');
+  ligarArraste();
+  pintarEtapa();
+  iniciarCrono();
+}
+
+/* Distribui as peças: equipamentos grandes no arco de cima, o resto embaixo. */
+function posicionar(lista){
+  const area=document.getElementById('area');
+  const L=area.clientWidth, A=area.clientHeight;
+  const emCima=['moedor','filtro','maquina','vapor','xicara'];
+  const topo=lista.filter(n=>emCima.includes(n));
+  const base=lista.filter(n=>!emCima.includes(n));
+  const col=(arr,y)=>arr.forEach((n,i)=>{
+    const p=S.pecas[n];
+    const passo=L/(arr.length+1);
+    p.style.left=(passo*(i+1)-53)+'px';
+    p.style.top=y+'px';
+  });
+  col(topo, Math.max(10, A*0.10));
+  col(base, Math.max(120, A*0.56));
+}
+window.addEventListener('resize',()=>{
+  if(document.getElementById('jogo').classList.contains('ativa'))
+    posicionar(RECEITAS[S.bebida].pecas);
+});
+
+/* ==========================================================================
+   8. CRONÔMETRO — relógio local, que é o que permite o jogo rodar sem rede
+   ========================================================================== */
+function iniciarCrono(){
+  S.inicio=performance.now(); S.rodando=true;
+  clearInterval(S.tick);
+  S.tick=setInterval(()=>{
+    document.getElementById('jg-crono').textContent=formata(performance.now()-S.inicio);
+  },67);
+}
+function pararCrono(){ S.rodando=false; clearInterval(S.tick); }
+function formata(ms){
+  if(ms<0) ms=0;
+  const m=Math.floor(ms/60000), s=Math.floor(ms%60000/1000),
+        d=Math.floor(ms%1000/100);
+  return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')+'.'+d;
+}
+
+/* ==========================================================================
+   9. ETAPAS
+   ========================================================================== */
+function etapaAtual(){ return RECEITAS[S.bebida].etapas[S.etapa]; }
+
+function pintarEtapa(){
+  const r=RECEITAS[S.bebida];
+  r.etapas.forEach((e,i)=>{
+    const li=document.getElementById('et'+i);
+    li.className = i<S.etapa ? 'ok' : (i===S.etapa ? 'atual' : '');
+  });
+  Object.values(S.pecas).forEach(p=>{
+    p.classList.remove('pronto','quente');
+  });
+  document.getElementById('barra').classList.remove('on');
+
+  if(S.etapa>=r.etapas.length){
+    document.getElementById('jg-passo').textContent='tudo pronto';
+    document.getElementById('jg-texto').textContent=
+      'Receita completa — aperte FINALIZEI';
+    document.getElementById('bt-finalizar').disabled=false;
+    return;
+  }
+  const e=etapaAtual();
+  document.getElementById('jg-passo').textContent=
+    'Etapa '+(S.etapa+1)+' de '+r.etapas.length;
+  document.getElementById('jg-texto').textContent=e.txt;
+
+  // pistas visuais
+  if(e.t==='arrastar'){
+    S.pecas[e.item] && S.pecas[e.item].classList.add('pronto');
+    S.pecas[e.alvo] && S.pecas[e.alvo].classList.add('quente');
+  }else{
+    S.pecas[e.alvo] && S.pecas[e.alvo].classList.add('pronto');
+  }
+}
+
+function concluirEtapa(){
+  const e=etapaAtual();
+  if(e.vira){
+    const p=S.pecas[e.vira.peca];
+    if(p){
+      p.innerHTML=svg(e.vira.arte)+'<span>'+e.vira.rotulo+'</span>';
+      p.dataset.peca=e.vira.peca;
+    }
+  }
+  if(e.remove){
+    const alvo = e.t==='arrastar' ? e.item : e.alvo;
+    const p=S.pecas[alvo];
+    // só some de fato se a etapa não tiver acabado de transformar essa peça
+    if(p && !(e.vira && e.vira.peca===alvo)){
+      p.style.transition='opacity .25s'; p.style.opacity='0';
+      setTimeout(()=>{ p.style.display='none'; },260);
+    }
+  }
+  S.etapa++;
+  aviso('Boa!',true);
+  pintarEtapa();
+}
+
+/* ==========================================================================
+   10. ARRASTAR E SEGURAR — ponteiro único, serve para dedo e mouse
+   ========================================================================== */
+let arrastando=null, dx=0, dy=0, segurar=null;
+
+function ligarArraste(){
+  const area=document.getElementById('area');
+  area.onpointerdown=aoPegar;
+  area.onpointermove=aoMover;
+  area.onpointerup=aoSoltar;
+  area.onpointercancel=aoSoltar;
+}
+
+function pecaDoEvento(ev){
+  const el=ev.target.closest('.peca');
+  return (el && el.style.display!=='none') ? el : null;
+}
+
+function aoPegar(ev){
+  if(!S.rodando || S.etapa>=RECEITAS[S.bebida].etapas.length) return;
+  const p=pecaDoEvento(ev); if(!p) return;
+  const e=etapaAtual();
+
+  if(e.t==='segurar'){
+    if(p.dataset.peca!==e.alvo && p!==S.pecas[e.alvo]){ errar(p); return; }
+    comecarSegurar(p,e);
+    return;
+  }
+  // arrastar: só a peça certa sai do lugar
+  if(p!==S.pecas[e.item]){ errar(p); return; }
+  arrastando=p;
+  const r=p.getBoundingClientRect();
+  dx=ev.clientX-r.left; dy=ev.clientY-r.top;
+  p._volta={left:p.style.left,top:p.style.top};
+  p.classList.remove('voando');
+  p.style.zIndex=20;
+  // segura o ponteiro no elemento: sem isto, o dedo que sai de cima da peça
+  // no meio do arrasto interrompe o movimento
+  try{ ev.currentTarget.setPointerCapture(ev.pointerId); }catch(err){}
+}
+
+function aoMover(ev){
+  if(!arrastando) return;
+  const a=document.getElementById('area').getBoundingClientRect();
+  arrastando.style.left=(ev.clientX-a.left-dx)+'px';
+  arrastando.style.top =(ev.clientY-a.top -dy)+'px';
+}
+
+function aoSoltar(ev){
+  if(segurar) cancelarSegurar();
+  if(!arrastando) return;
+  const p=arrastando; arrastando=null; p.style.zIndex='';
+  const e=etapaAtual();
+  const alvo=S.pecas[e.alvo];
+  if(alvo && encostou(p,alvo)){
+    p.classList.add('voando');
+    p.style.left=p._volta.left; p.style.top=p._volta.top;
+    concluirEtapa();
+  }else{
+    p.classList.add('voando');
+    p.style.left=p._volta.left; p.style.top=p._volta.top;
+  }
+}
+
+function encostou(a,b){
+  const r1=a.getBoundingClientRect(), r2=b.getBoundingClientRect();
+  return !(r1.right<r2.left+18 || r1.left>r2.right-18 ||
+           r1.bottom<r2.top+18 || r1.top>r2.bottom-18);
+}
+
+function errar(p){
+  p.classList.remove('errou'); void p.offsetWidth; p.classList.add('errou');
+  aviso('Esse não é o passo agora');
+}
+
+/* --- segurar --- */
+function comecarSegurar(p,e){
+  const barra=document.getElementById('barra');
+  const r=p.getBoundingClientRect();
+  const a=document.getElementById('area').getBoundingClientRect();
+  barra.style.top=(r.bottom-a.top+8)+'px';
+  barra.style.left=(r.left-a.left+r.width/2)+'px';
+  barra.classList.add('on');
+  const i=barra.querySelector('i');
+  const t0=performance.now();
+  segurar={p:p,e:e,raf:0};
+  (function anda(){
+    if(!segurar) return;
+    const pct=Math.min(100,(performance.now()-t0)/e.ms*100);
+    i.style.width=pct+'%';
+    if(pct>=100){ barra.classList.remove('on'); i.style.width='0%';
+      segurar=null; concluirEtapa(); return; }
+    segurar.raf=requestAnimationFrame(anda);
+  })();
+}
+function cancelarSegurar(){
+  if(!segurar) return;
+  cancelAnimationFrame(segurar.raf);
+  const barra=document.getElementById('barra');
+  barra.classList.remove('on'); barra.querySelector('i').style.width='0%';
+  segurar=null;
+}
+
+/* ==========================================================================
+   11. FIM DA PARTIDA
+   ========================================================================== */
+function finalizar(){
+  const r=RECEITAS[S.bebida];
+  if(S.etapa<r.etapas.length){
+    aviso('Ainda falta etapa da receita'); return;
+  }
+  S.fim=performance.now()-S.inicio;
+  pararCrono();
+  guardarNoRanking(S.nome,S.bebida,S.fim);
+  mostrarFim();
+}
+
+function mostrarFim(){
+  const r=RECEITAS[S.bebida];
+  document.getElementById('fim-titulo').textContent='Bebida pronta!';
+  document.getElementById('fim-tempo').textContent=formata(S.fim);
+  document.getElementById('fim-sub').textContent=
+    r.nome+' — todas as '+r.etapas.length+' etapas na ordem certa';
+
+  // compara com o melhor tempo DESTA bebida que já passou por este tablet
+  const antes=lerRanking().filter(x=>x.bebida===S.bebida)
+                          .sort((a,b)=>a.ms-b.ms);
+  const box=document.getElementById('fim-placar'); box.innerHTML='';
+  if(antes.length>1){
+    const melhor=antes[0];
+    const souEu = Math.abs(melhor.ms-S.fim)<1 && melhor.nome===S.nome;
+    box.innerHTML =
+      lado(S.nome, S.fim, souEu) +
+      lado(melhor.nome+' (melhor tempo)', melhor.ms, !souEu);
+  }
+  irPara('t-fim');
+}
+function lado(nome,ms,venceu){
+  return '<div class="lado'+(venceu?' venceu':'')+'">'+
+    (venceu?'<div class="coroa">👑</div>':'')+
+    '<b>'+esc(nome)+'</b><div class="t">'+formata(ms)+'</div></div>';
+}
+function esc(s){ const d=document.createElement('div'); d.textContent=s;
+  return d.innerHTML; }
+
+/* ==========================================================================
+   12. RANKING — guardado no próprio tablet, funciona sem rede nenhuma
+   ========================================================================== */
+function lerRanking(){
+  try{ return JSON.parse(localStorage.getItem(CHAVE_RANK)||'[]'); }
+  catch(e){ return []; }
+}
+function guardarNoRanking(nome,bebida,ms){
+  try{
+    const r=lerRanking();
+    r.push({nome:nome,bebida:bebida,ms:Math.round(ms),quando:Date.now()});
+    localStorage.setItem(CHAVE_RANK,JSON.stringify(r.slice(-300)));
+  }catch(e){ /* tablet com armazenamento bloqueado: o jogo segue */ }
+}
+let filtroRank='todas';
+function abrirRanking(){ filtroRank='todas'; desenharRanking(); irPara('t-rank'); }
+function desenharRanking(){
+  const f=document.getElementById('rank-filtro'); f.innerHTML='';
+  const opcoes=[['todas','Todas']].concat(
+    Object.entries(RECEITAS).map(([id,r])=>[id,r.nome]));
+  opcoes.forEach(([id,txt])=>{
+    const b=document.createElement('button');
+    b.className='btn fantasma'; b.style.fontSize='14px';
+    b.style.padding='8px 14px';
+    if(id===filtroRank){ b.style.background='var(--verde)';
+      b.style.color='var(--creme)'; b.style.borderColor='var(--verde)'; }
+    b.textContent=txt;
+    b.onclick=()=>{ filtroRank=id; desenharRanking(); };
+    f.appendChild(b);
+  });
+  let lista=lerRanking();
+  if(filtroRank!=='todas') lista=lista.filter(x=>x.bebida===filtroRank);
+  lista.sort((a,b)=>a.ms-b.ms);
+  const box=document.getElementById('rank-box');
+  if(!lista.length){
+    box.innerHTML='<div class="vazio">Ninguém jogou ainda.</div>'; return;
+  }
+  box.innerHTML='<table><thead><tr><th></th><th>Barista</th>'+
+    '<th>Bebida</th><th style="text-align:right">Tempo</th></tr></thead><tbody>'+
+    lista.slice(0,40).map((x,i)=>
+      '<tr><td class="pos">'+(i+1)+'º</td><td>'+esc(x.nome)+'</td>'+
+      '<td style="font-size:13px;color:var(--cafe-claro)">'+
+        esc(RECEITAS[x.bebida]?RECEITAS[x.bebida].nome:x.bebida)+'</td>'+
+      '<td class="tp">'+formata(x.ms)+'</td></tr>').join('')+
+    '</tbody></table>';
+}
+
+/* ==========================================================================
+   13. PARTIDA
+   ========================================================================== */
+document.querySelectorAll('[data-logo]').forEach(s=>s.innerHTML=ART.logo);
+document.getElementById('logo-svg').innerHTML=ART.logo;
+document.getElementById('in-nome').addEventListener('keydown',ev=>{
+  if(ev.key==='Enter') salvarNome();
+});
+</script>
+</body>
+</html>

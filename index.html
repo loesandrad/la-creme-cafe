@@ -86,15 +86,19 @@ button{font-family:inherit;cursor:pointer;border:none}
 #jogo{padding:0;display:none}
 #jogo.ativa{display:grid}
 #jogo{
-  grid-template-columns:1fr 300px; grid-template-rows:auto 1fr;
+  grid-template-columns:1fr; grid-template-rows:auto 1fr;
   gap:0; align-items:stretch; justify-content:stretch;
 }
 .topo{
   grid-column:1/-1; display:flex; align-items:center; gap:14px;
   padding:8px 16px; background:var(--cafe); color:var(--creme);
 }
-.topo .quem{font-weight:700;font-size:17px;flex:1;
+.topo .quem{font-weight:700;font-size:17px;flex:none;
+  max-width:26vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topo .bebidatopo{flex:1;text-align:center;font-size:15px;opacity:.9;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topo .progresso{flex:none;font-size:13px;font-weight:700;letter-spacing:.1em;
+  background:rgba(255,240,220,.17);padding:5px 11px;border-radius:20px}
 .topo .logo{width:34px;height:34px;flex:none}
 .crono{
   font-variant-numeric:tabular-nums; font-size:30px; font-weight:800;
@@ -105,13 +109,27 @@ button{font-family:inherit;cursor:pointer;border:none}
     radial-gradient(circle at 50% 0%, #fff8ee 0%, var(--creme) 62%);
   overflow:hidden; display:flex; flex-direction:column;
 }
-.instrucao{
-  text-align:center; font-size:clamp(15px,2.1vw,20px); font-weight:700;
-  padding:10px 14px; color:var(--verde); min-height:44px;
-}
-.instrucao .passo{display:block;font-size:12px;letter-spacing:.2em;
-  color:var(--cafe-claro);font-weight:600;text-transform:uppercase}
 .area{flex:1;position:relative}
+
+/* ⭐ A instrução mora EMBAIXO dos itens, uma por vez, grande e pulsando.
+   Quando a receita acaba, esta mesma faixa vira o botão FINALIZEI — o olho
+   não precisa procurar em outro lugar. */
+.rodape{
+  padding:6px 16px 18px; display:flex; align-items:center;
+  justify-content:center; min-height:104px; flex:none;
+}
+.instrucao{
+  font-size:clamp(19px,3.2vw,33px); font-weight:800; line-height:1.18;
+  color:var(--cafe); background:var(--bege); border:3px solid var(--caramelo);
+  border-radius:18px; padding:15px 34px; text-align:center;
+  box-shadow:var(--sombra); max-width:94%;
+  animation:respira 1.5s ease-in-out infinite;
+}
+@keyframes respira{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.instrucao.feito{animation:none;background:#EAF3E8;border-color:var(--verde);
+  color:var(--verde)}
+#bt-finalizar{font-size:clamp(20px,3.4vw,34px);padding:17px 46px;
+  animation:respira 1.3s ease-in-out infinite}
 
 /* peça (ingrediente ou equipamento) */
 .peca{
@@ -272,24 +290,20 @@ button{font-family:inherit;cursor:pointer;border:none}
   <header class="topo">
     <svg class="logo" viewBox="0 0 100 100" data-logo></svg>
     <span class="quem" id="jg-nome"></span>
+    <span class="bebidatopo" id="jg-bebida"></span>
+    <span class="progresso" id="jg-passo"></span>
     <span class="crono" id="jg-crono">00:00.0</span>
   </header>
   <div class="palco">
-    <div class="instrucao" id="jg-instrucao">
-      <span class="passo" id="jg-passo"></span>
-      <span id="jg-texto"></span>
-    </div>
     <div class="area" id="area">
       <div class="barra" id="barra"><i></i></div>
     </div>
+    <div class="rodape">
+      <div class="instrucao" id="jg-instrucao"><span id="jg-texto"></span></div>
+      <button class="btn verde" id="bt-finalizar" onclick="finalizar()"
+              hidden>FINALIZEI</button>
+    </div>
   </div>
-  <aside class="painel">
-    <h3>Receita</h3>
-    <div class="nomebebida" id="jg-bebida"></div>
-    <ol class="etapas" id="jg-etapas"></ol>
-    <button class="btn verde btn-fim" id="bt-finalizar" disabled
-            onclick="finalizar()">FINALIZEI</button>
-  </aside>
 </section>
 
 <!-- ============================ RESULTADO ============================ -->
@@ -627,15 +641,8 @@ function montarMesa(){
   S.etapa=0; S.pecas={};
   document.getElementById('jg-nome').textContent=S.nome;
   document.getElementById('jg-bebida').textContent=r.nome;
-  document.getElementById('bt-finalizar').disabled=true;
-
-  // lista de etapas no painel
-  const ol=document.getElementById('jg-etapas'); ol.innerHTML='';
-  r.etapas.forEach((e,i)=>{
-    const li=document.createElement('li');
-    li.innerHTML='<span class="n">'+(i+1)+'</span><span>'+e.txt+'</span>';
-    li.id='et'+i; ol.appendChild(li);
-  });
+  document.getElementById('bt-finalizar').hidden=true;
+  document.getElementById('jg-instrucao').hidden=false;
 
   // peças na bancada
   const area=document.getElementById('area');
@@ -648,8 +655,11 @@ function montarMesa(){
     area.appendChild(p);
     S.pecas[nome]=p;
   });
-  posicionar(lista);
+  /* ⛔ A tela PRECISA estar visível antes de posicionar: enquanto o <section>
+     está escondido, a área mede 0 de largura e todas as peças caem empilhadas
+     em x negativo, fora do tablet. Primeiro mostra, depois distribui. */
   irPara('jogo');
+  posicionar(lista);
   ligarArraste();
   pintarEtapa();
   iniciarCrono();
@@ -659,6 +669,8 @@ function montarMesa(){
 function posicionar(lista){
   const area=document.getElementById('area');
   const L=area.clientWidth, A=area.clientHeight;
+  // rede de segurança: se ainda não há largura, tenta no quadro seguinte
+  if(L<60){ requestAnimationFrame(()=>posicionar(lista)); return; }
   const emCima=['moedor','filtro','maquina','vapor','xicara'];
   const topo=lista.filter(n=>emCima.includes(n));
   const base=lista.filter(n=>!emCima.includes(n));
@@ -701,26 +713,25 @@ function etapaAtual(){ return RECEITAS[S.bebida].etapas[S.etapa]; }
 
 function pintarEtapa(){
   const r=RECEITAS[S.bebida];
-  r.etapas.forEach((e,i)=>{
-    const li=document.getElementById('et'+i);
-    li.className = i<S.etapa ? 'ok' : (i===S.etapa ? 'atual' : '');
-  });
   Object.values(S.pecas).forEach(p=>{
     p.classList.remove('pronto','quente');
   });
   document.getElementById('barra').classList.remove('on');
+  const faixa=document.getElementById('jg-instrucao');
 
+  // acabou a receita: a faixa dá lugar ao botão, no mesmo ponto da tela
   if(S.etapa>=r.etapas.length){
-    document.getElementById('jg-passo').textContent='tudo pronto';
-    document.getElementById('jg-texto').textContent=
-      'Receita completa — aperte FINALIZEI';
-    document.getElementById('bt-finalizar').disabled=false;
+    document.getElementById('jg-passo').textContent='COMPLETO';
+    faixa.hidden=true;
+    document.getElementById('bt-finalizar').hidden=false;
     return;
   }
   const e=etapaAtual();
   document.getElementById('jg-passo').textContent=
-    'Etapa '+(S.etapa+1)+' de '+r.etapas.length;
+    (S.etapa+1)+'/'+r.etapas.length;
   document.getElementById('jg-texto').textContent=e.txt;
+  // reinicia a pulsação a cada etapa nova, para o olho perceber a troca
+  faixa.style.animation='none'; void faixa.offsetWidth; faixa.style.animation='';
 
   // pistas visuais
   if(e.t==='arrastar'){

@@ -1412,7 +1412,7 @@ window.addEventListener('resize',()=>{
    Vai dentro de try/catch e so roda em https (ou no proprio computador):
    se o navegador nao aceitar, o jogo continua igual, so sem o guardado.
    ========================================================================== */
-const VERSAO='2026-11-14 16:50';   // trocado automaticamente a cada publicacao
+const VERSAO='2026-11-14 16:55';   // trocado automaticamente a cada publicacao
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
     try{ navigator.serviceWorker.register('sw.js'); }catch(e){}
@@ -1428,13 +1428,19 @@ function conferirVersao(){
   if(sessionStorage.getItem('lacreme.recarregou')) return;
   fetch('versao.txt?t='+Date.now(),{cache:'no-store'})
     .then(r=>r.ok?r.text():null)
-    .then(v=>{
+    .then(async v=>{
       if(!v) return;
       v=v.trim();
-      if(v && v!==VERSAO && document.getElementById('t-inicio').classList.contains('ativa')){
-        try{ sessionStorage.setItem('lacreme.recarregou','1'); }catch(e){}
-        location.reload();
-      }
+      if(v===VERSAO) return;
+      if(!document.getElementById('t-inicio').classList.contains('ativa')) return;
+      /* ⛔ recarregar direto NAO resolve: o guardado ainda tem a copia velha e
+         a pessoa volta para a mesma versao — foi exatamente o que aconteceu no
+         teste de 14/11. Primeiro manda o guardado buscar a nova (o sw.js trata
+         o ?atualizar=1 indo na rede e regravando), e so entao recarrega. */
+      try{ await fetch('index.html?atualizar=1&t='+Date.now(),{cache:'no-store'}); }
+      catch(e){}
+      try{ sessionStorage.setItem('lacreme.recarregou','1'); }catch(e){}
+      location.reload();
     })
     .catch(()=>{});
 }

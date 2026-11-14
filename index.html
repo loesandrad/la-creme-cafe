@@ -40,7 +40,10 @@ button{font-family:inherit;cursor:pointer;border:none}
    tela, e a pessoa nem descobre que existe algo acima. Estes dois espaçadores
    centralizam enquanto sobra espaço e somem quando falta — aí a tela começa
    no início e rola normalmente. */
-.tela::before,.tela::after{content:'';flex:1 1 auto;min-height:0}
+/* ⛔⛔ e NUNCA na tela do jogo: ali o layout e uma GRADE, e estes dois viram
+   celulas, empurrando todas as faixas uma casa — a barra de cima fica com um
+   terco da tela e a bancada encolhe. Foi o que quebrou em 14/11. */
+.tela:not(#jogo)::before,.tela:not(#jogo)::after{content:'';flex:1 1 auto;min-height:0}
 .tela.ativa{display:flex}
 
 .marca{display:flex;flex-direction:column;align-items:center;gap:2px}
@@ -139,12 +142,21 @@ button{font-family:inherit;cursor:pointer;border:none}
   55%{filter:brightness(1.12);transform:scale(1.035)}
   100%{filter:none;transform:scale(1)}
 }
-  .dentro .camada.topo::after{background:#fff;opacity:.3}
-}
-.item img{width:72px;height:72px;object-fit:contain;pointer-events:none;
-  filter:drop-shadow(0 4px 5px rgba(0,0,0,.3))}
-#centro .vas{width:min(30vw,236px)}
-#copo .vas{width:min(19vw,152px)}
+/* ⛔ aqui havia duas linhas orfas de uma edicao minha anterior — uma regra
+   solta e uma CHAVE A MAIS. A chave sobrando fazia o navegador engolir a
+   regra seguinte, e era por isso que o desenho das pecas saia no tamanho
+   natural (224px) dentro de uma caixa de 98px, invadindo as vizinhas. */
+/* ⭐ O tamanho acompanha a tela, com teto calculado para o pior caso: as 7
+   pecas do cappuccino mais os 6 vaos tem que caber lado a lado sem apertar.
+   72px fixos ficavam minusculos num tablet grande e dificeis de pegar. */
+.item img{width:min(9vw,96px);height:min(9vw,96px);object-fit:contain;
+  pointer-events:none;filter:drop-shadow(0 4px 5px rgba(0,0,0,.3))}
+/* ⭐ Luiz, 14/11: a vasilha era medida so pela LARGURA. Numa tela baixa ela
+   ficava mais alta que a faixa da bancada e o topo era cortado — pior ainda
+   enquanto pulsa (cresce 9%). Agora entra um terceiro teto, --vas-max, que o
+   JS calcula a partir da altura que a bancada realmente tem. */
+#centro .vas{width:min(30vw,236px,var(--vas-max,236px))}
+#copo .vas{width:min(19vw,152px,calc(var(--vas-max,152px)*.64))}
 .posto .rot{text-shadow:0 1px 3px rgba(255,255,255,.85)}
 .posto .rot{font-size:13px;font-weight:700;color:var(--cafe-claro)}
 #centro svg{width:min(34vw,262px);height:min(34vw,262px)}
@@ -176,13 +188,13 @@ button{font-family:inherit;cursor:pointer;border:none}
 /* prateleira de itens */
 /* a gaveta do balcão, onde ficam os ingredientes */
 .prateleira{display:flex;align-items:flex-end;justify-content:center;
-  gap:min(3vw,26px);padding:8px 14px 10px;min-height:118px;flex-wrap:wrap;
+  gap:min(2.2vw,22px);padding:8px 14px 10px;min-height:118px;flex-wrap:wrap;
   background:linear-gradient(#B07A45 0%,#9A6637 16%,#8A5A2E 100%);
   border-top:5px solid #6E4522;
   box-shadow:inset 0 9px 14px rgba(0,0,0,.17)}
 .prateleira .item span{color:#FFF0DC;text-shadow:0 1px 2px rgba(0,0,0,.45)}
-.item{width:98px;display:flex;flex-direction:column;align-items:center;gap:2px;
-  touch-action:none}
+.item{width:min(12vw,124px);min-width:84px;display:flex;flex-direction:column;
+  align-items:center;gap:2px;touch-action:none}
 .item svg{width:72px;height:72px;pointer-events:none;
   filter:drop-shadow(0 4px 6px rgba(113,62,32,.25))}
 .item span{font-size:12px;font-weight:700;pointer-events:none;text-align:center;
@@ -203,15 +215,15 @@ button{font-family:inherit;cursor:pointer;border:none}
   75%{transform:translateX(9px)}}
 
 /* barra de segurar */
-.barra{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);
-  width:190px;height:20px;border-radius:12px;background:rgba(113,62,32,.17);
-  overflow:hidden;display:none;z-index:3;border:3px solid var(--caramelo)}
+.barra{width:min(60vw,260px);height:20px;border-radius:12px;
+  background:rgba(113,62,32,.17);overflow:hidden;display:none;
+  border:3px solid var(--caramelo);flex:none;margin-bottom:8px}
 .barra.on{display:block}
 .barra i{display:block;height:100%;width:0%;background:var(--verde)}
 
 /* rodapé com a instrução */
-.rodape{padding:6px 16px 16px;display:flex;align-items:center;
-  justify-content:center;min-height:100px}
+.rodape{padding:6px 16px 16px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;min-height:100px}
 .instrucao{font-size:clamp(18px,3.1vw,32px);font-weight:800;line-height:1.18;
   color:var(--cafe);background:var(--bege);border:3px solid var(--caramelo);
   border-radius:18px;padding:14px 32px;text-align:center;box-shadow:var(--sombra);
@@ -250,9 +262,12 @@ button{font-family:inherit;cursor:pointer;border:none}
   line-height:1;animation:zoom .9s ease-out}
 @keyframes zoom{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
 
-.aviso{position:fixed;left:50%;bottom:118px;transform:translateX(-50%);
-  background:var(--erro);color:#fff;padding:11px 22px;border-radius:11px;
-  font-weight:700;font-size:16px;box-shadow:var(--sombra);opacity:0;
+/* ⛔ este aviso ficava a 118px do rodape. Numa tela baixa isso cai em cima
+   das pecas da prateleira — e a peca que a pessoa precisa arrastar some atras
+   dele. Agora quem decide a altura e o JS, logo abaixo da barra de cima. */
+.aviso{position:fixed;left:50%;top:84px;transform:translateX(-50%);
+  background:var(--erro);color:#fff;padding:7px 18px;border-radius:10px;
+  font-weight:700;font-size:15px;box-shadow:var(--sombra);opacity:0;
   pointer-events:none;transition:opacity .2s;z-index:50;max-width:92vw;text-align:center}
 .aviso.on{opacity:1}
 .aviso.bom{background:var(--verde)}
@@ -269,15 +284,15 @@ button{font-family:inherit;cursor:pointer;border:none}
   .tempo-grande{font-size:clamp(34px,8vw,58px)}
   .tela{gap:9px;padding:10px}
   .prateleira{min-height:92px;padding:5px 10px 7px}
-  .item{width:76px}
-  .item img{width:54px;height:54px}
+  .item{width:min(11vw,96px);min-width:70px}
+  .item img{width:min(8vw,72px);height:min(8vw,72px)}
   .item span{font-size:10.5px}
   .rodape{min-height:72px;padding:4px 12px 10px}
   .instrucao{font-size:clamp(15px,2.6vw,22px);padding:10px 20px}
   #bt-finalizar{font-size:clamp(17px,2.8vw,24px);padding:12px 32px}
   .mesa{padding-bottom:min(5vh,34px);gap:min(5vw,52px)}
-  #centro .vas{width:min(23vw,160px)}
-  #copo .vas{width:min(15vw,106px)}
+  #centro .vas{width:min(23vw,160px,var(--vas-max,160px))}
+  #copo .vas{width:min(15vw,106px,calc(var(--vas-max,106px)*.64))}
   .topo{padding:5px 12px}
   .crono{font-size:22px}
 }
@@ -332,10 +347,13 @@ button{font-family:inherit;cursor:pointer;border:none}
       <div class="fumaca" id="fumaca"><span></span><span></span><span></span><span></span></div>
     </div>
     <div class="posto" id="copo"></div>
-    <div class="barra" id="barra"><i></i></div>
   </div>
   <div class="prateleira" id="prateleira"></div>
   <div class="rodape">
+    <!-- ⭐ Luiz, 14/11: a barra morava DENTRO da bancada, flutuando, e cobria a
+         vasilha. Agora ela e uma linha do rodape, em fluxo normal, logo acima
+         da instrucao que manda segurar. Em fluxo, sobrepor virou impossivel. -->
+    <div class="barra" id="barra"><i></i></div>
     <div class="instrucao" id="jg-instrucao"><span id="jg-texto"></span></div>
     <button class="btn verde" id="bt-finalizar" onclick="finalizar()" hidden>FINALIZEI</button>
   </div>
@@ -763,8 +781,25 @@ function irPara(id){
 }
 function aviso(txt,bom){
   const a=document.getElementById('aviso');
-  a.textContent=txt;a.className='aviso on'+(bom?' bom':'');
-  clearTimeout(a._t);a._t=setTimeout(()=>a.className='aviso',1400);
+  a.textContent=txt;
+  /* ⛔ 14/11: tentei pendurar o aviso logo ABAIXO da barra de cima e ele caiu
+     em cima da vasilha nas telas largas, onde a bancada comeca mais alto. Nao
+     existe lugar seguro na bancada — a vasilha e a xicara podem estar em
+     qualquer altura. Entao ele vive DENTRO da barra de cima, a unica faixa
+     que nunca tem peca. Cobre o nome da bebida por 1,4s, e so. */
+  const t=document.querySelector('#jogo .topo');
+  const naPartida=t && t.offsetHeight && document.getElementById('jogo').classList.contains('ativa');
+  a.className='aviso'+(bom?' bom':'');          // sem o .on ainda, so para medir
+  a.style.top=(naPartida
+    ? Math.max(3,(t.getBoundingClientRect().height - a.offsetHeight)/2)
+    : 18)+'px';
+  a.className='aviso on'+(bom?' bom':'');
+  /* o nome da bebida fica no mesmo lugar: some enquanto o aviso esta no ar,
+     para os dois textos nao se misturarem */
+  const nome=document.getElementById('jg-bebida');
+  if(nome) nome.style.opacity=naPartida?'0':'';
+  clearTimeout(a._t);
+  a._t=setTimeout(()=>{a.className='aviso'; if(nome) nome.style.opacity='';},1400);
 }
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 
@@ -812,6 +847,24 @@ function comecarPartida(){
 /* ==========================================================================
    7. A MESA
    ========================================================================== */
+/* Traduz a altura que a bancada REALMENTE tem num teto de largura para as
+   vasilhas, para o topo delas nunca ser cortado.
+
+   Tres coisas que eu errei antes e que a conta precisa respeitar:
+   · as figuras sao QUADRADAS (224x224) — altura disponivel = teto de largura;
+   · embaixo da vasilha ainda ha o rotulo (moedor, xicara...), que ocupa altura;
+   · enquanto o passo esta ativo a vasilha PULSA ate 9% maior.             */
+function ajustarVasilhas(){
+  const m=document.getElementById('mesa');
+  if(!m || !m.clientHeight) return;
+  const recuo=parseFloat(getComputedStyle(m).paddingBottom)||0;
+  const rot=document.querySelector('#centro .rot');
+  const rotulo=(rot ? rot.getBoundingClientRect().height : 18) + 10;
+  const util=m.clientHeight - recuo - rotulo - 14;   // folga de respiro
+  const teto=Math.round(Math.max(80, util/1.12));   // 1.12 > os 9% da pulsacao
+  document.documentElement.style.setProperty('--vas-max', teto+'px');
+}
+
 function montarMesa(){
   const r=RECEITAS[S.bebida];
   S.etapa=0;S.centro=null;S.estadoCentro=null;S.estadoCopo=null;
@@ -821,9 +874,11 @@ function montarMesa(){
   document.getElementById('bt-finalizar').hidden=true;
   document.getElementById('jg-instrucao').hidden=false;
   irPara('jogo');
+  ajustarVasilhas();        // ⚠️ depois do irPara: antes a bancada mede zero
   montarPrateleira();
   desenharCentro();
   desenharCopo();
+  ajustarVasilhas();        // de novo: agora o rotulo existe e pode ser medido
   ligarArraste();
   pintarEtapa();
   iniciarCrono();
@@ -1343,7 +1398,7 @@ document.getElementById('in-nome').addEventListener('keydown',ev=>{
 });
 window.addEventListener('resize',()=>{
   if(document.getElementById('jogo').classList.contains('ativa')){
-    desenharCentro();desenharCopo();
+    ajustarVasilhas();desenharCentro();desenharCopo();
   }
 });
 
@@ -1357,7 +1412,7 @@ window.addEventListener('resize',()=>{
    Vai dentro de try/catch e so roda em https (ou no proprio computador):
    se o navegador nao aceitar, o jogo continua igual, so sem o guardado.
    ========================================================================== */
-const VERSAO='2026-11-14 16:08';   // trocado automaticamente a cada publicacao
+const VERSAO='2026-11-14 16:50';   // trocado automaticamente a cada publicacao
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
     try{ navigator.serviceWorker.register('sw.js'); }catch(e){}

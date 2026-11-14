@@ -127,6 +127,18 @@ button{font-family:inherit;cursor:pointer;border:none}
 #centro svg{width:min(34vw,262px);height:min(34vw,262px)}
 #copo svg{width:min(21vw,168px);height:min(21vw,168px)}
 .posto.alvo{animation:pulsa 1.3s ease-in-out infinite}
+/* a ORIGEM do despejo: pulsa mais devagar e mostra de onde puxar */
+.posto.origem{animation:balanca 1.5s ease-in-out infinite}
+.posto.origem::after{content:'arraste';position:absolute;top:-6px;left:50%;
+  transform:translateX(-50%);background:var(--verde);color:var(--creme);
+  font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  padding:4px 11px;border-radius:20px;white-space:nowrap;z-index:4;
+  box-shadow:0 3px 7px rgba(0,0,0,.3)}
+@keyframes balanca{
+  0%,100%{transform:translateX(0) rotate(0)}
+  30%{transform:translateX(7px) rotate(4deg)}
+  60%{transform:translateX(-4px) rotate(-2deg)}
+}
 .posto.alvo::before{content:'';position:absolute;inset:-18px;border-radius:26px;
   border:4px dashed var(--verde);opacity:.75}
 /* o lugar vazio da bancada. Precisa ser legível em cima da madeira, por isso
@@ -878,7 +890,7 @@ const etapaAtual=()=>RECEITAS[S.bebida].etapas[S.etapa];
 function pintarEtapa(){
   const r=RECEITAS[S.bebida];
   Object.values(S.itens).forEach(i=>i.classList.remove('pronto'));
-  document.getElementById('centro').classList.remove('alvo');
+  document.getElementById('centro').classList.remove('alvo','origem');
   document.getElementById('copo').classList.remove('alvo');
   document.getElementById('barra').classList.remove('on');
   const faixa=document.getElementById('jg-instrucao');
@@ -901,7 +913,13 @@ function pintarEtapa(){
   else if(e.t==='add'){ S.itens[e.item]&&S.itens[e.item].classList.add('pronto');
     document.getElementById('centro').classList.add('alvo'); }
   else if(e.t==='segurar'){ document.getElementById('centro').classList.add('alvo'); }
-  else if(e.t==='servir'){ document.getElementById('copo').classList.add('alvo'); }
+  else if(e.t==='servir'){
+    /* ⭐ Luiz, 14/11: no despejo só a xícara piscava, e quem joga não descobria
+       que precisa arrastar a VASILHA até ela. Agora a origem pulsa também, e
+       com marca própria, para ficar claro de onde puxar. */
+    document.getElementById('copo').classList.add('alvo');
+    document.getElementById('centro').classList.add('origem');
+  }
 }
 
 /* Tira o item da gaveta de vez, com a animação de sumiço. */

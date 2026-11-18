@@ -108,8 +108,16 @@ button{font-family:inherit;cursor:pointer;border:none}
 /* ⛔ `min-height:0` é obrigatório aqui. Sem ele o item do grid se recusa a
    encolher abaixo do próprio conteúdo, estoura a altura e a mesa passa POR
    CIMA da barra de cima e da gaveta — foi o que aconteceu numa tela de 534px. */
+/* ⭐⭐ touch-action:none — SEM ISSO O DEDO NÃO ARRASTA (17/11/2026).
+   O `manipulation` do body deixa o navegador rolar a tela com o dedo. No tablet,
+   assim que o dedo se move ele toma o gesto para si e dispara `pointercancel`,
+   que o jogo escuta e trata como soltar — o arraste morre antes de começar.
+   Com o mouse isso nunca acontece, por isso funcionava aqui e não lá.
+   ⛔ Só nas áreas onde se arrasta; no resto da página o `manipulation` fica,
+   porque é ele que evita o zoom de toque duplo nos menus. */
 .mesa{position:relative;display:flex;align-items:flex-end;justify-content:center;
   gap:min(7vw,90px);overflow:hidden;padding-bottom:min(10vh,72px);min-height:0;
+  touch-action:none;
   background-size:cover;background-position:center bottom}
 #cenario{display:none}
 .posto{position:relative;z-index:2;display:flex;flex-direction:column;
@@ -189,6 +197,7 @@ button{font-family:inherit;cursor:pointer;border:none}
 /* a gaveta do balcão, onde ficam os ingredientes */
 .prateleira{display:flex;align-items:flex-end;justify-content:center;
   gap:min(2.2vw,22px);padding:8px 14px 10px;min-height:118px;flex-wrap:wrap;
+  touch-action:none;                 /* ⭐⭐ ver o comentário em .mesa */
   background:linear-gradient(#B07A45 0%,#9A6637 16%,#8A5A2E 100%);
   border-top:5px solid #6E4522;
   box-shadow:inset 0 9px 14px rgba(0,0,0,.17)}
@@ -201,7 +210,7 @@ button{font-family:inherit;cursor:pointer;border:none}
   line-height:1.1}
 .item.pronto{animation:pulsa 1.2s ease-in-out infinite}
 .item.errou{animation:treme .32s}
-.item.arrastando{position:fixed;z-index:40;pointer-events:none}
+.item.arrastando{position:fixed;z-index:40;pointer-events:none;touch-action:none}
 /* ⭐ item usado SOME da gaveta, como no Sara's — encolhe e sai, e os que
    sobraram se reorganizam. A gaveta ir esvaziando é o próprio placar. */
 .item.sumindo{animation:some .34s ease-in forwards;pointer-events:none}
@@ -1075,7 +1084,20 @@ function pegarItem(ev){
                 (e.t==='add'   &&el.dataset.item===e.item);
   if(!certo){ errar(el); return; }
   arrastando={tipo:'item',el:el,alvo: 'centro'};
+  segurarPonteiro(ev);
   criarGhost(el,ev);
+}
+
+/* ⭐⭐ Os dois pedidos que fazem o DEDO arrastar (17/11/2026):
+   · preventDefault — sem ele o navegador ainda tenta selecionar e arrastar
+     a imagem por conta própria;
+   · setPointerCapture — os eventos de mover e soltar continuam chegando mesmo
+     quando o dedo sai de cima do elemento onde começou.
+   Falha calada de propósito: navegador velho sem captura continua funcionando
+   pelo caminho antigo, que é o do mouse. */
+function segurarPonteiro(ev){
+  if(ev.cancelable) ev.preventDefault();
+  try{ ev.currentTarget.setPointerCapture(ev.pointerId); }catch(e){}
 }
 
 /* --- pegar a vasilha do centro: serve para SEGURAR e para SERVIR --- */
@@ -1083,9 +1105,10 @@ function pegarCentro(ev){
   if(!S.rodando||S.etapa>=RECEITAS[S.bebida].etapas.length) return;
   if(!ev.target.closest('#centro')||!S.centro) return;
   const e=etapaAtual();
-  if(e.t==='segurar'){ comecarSegurar(e); return; }
+  if(e.t==='segurar'){ segurarPonteiro(ev); comecarSegurar(e); return; }
   if(e.t==='servir'){
     arrastando={tipo:'centro',el:document.getElementById('centro'),alvo:'copo'};
+    segurarPonteiro(ev);
     criarGhost(document.getElementById('centro'),ev,true);
     return;
   }
@@ -1412,7 +1435,7 @@ window.addEventListener('resize',()=>{
    Vai dentro de try/catch e so roda em https (ou no proprio computador):
    se o navegador nao aceitar, o jogo continua igual, so sem o guardado.
    ========================================================================== */
-const VERSAO='2026-11-14 16:55';   // trocado automaticamente a cada publicacao
+const VERSAO='2026-11-17 21:03';   // trocado automaticamente a cada publicacao
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
     try{ navigator.serviceWorker.register('sw.js'); }catch(e){}

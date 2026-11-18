@@ -48,7 +48,7 @@ button{font-family:inherit;cursor:pointer;border:none}
 
 .marca{display:flex;flex-direction:column;align-items:center;gap:2px}
 .marca .logo{width:128px;height:128px}
-/* ⭐ Luiz, 14/11: entrou a logo de verdade da cafeteria. Ela ja traz o nome
+/* ⭐ 14/11: entrou a logo de verdade da cafeteria. Ela ja traz o nome
    escrito dentro, por isso a tela inicial nao repete o titulo embaixo. */
 .selo{display:block;width:min(42vh,300px);height:auto;max-width:86vw}
 .selo.medio{width:min(26vh,190px)}
@@ -159,7 +159,7 @@ button{font-family:inherit;cursor:pointer;border:none}
    72px fixos ficavam minusculos num tablet grande e dificeis de pegar. */
 .item img{width:min(9vw,96px);height:min(9vw,96px);object-fit:contain;
   pointer-events:none;filter:drop-shadow(0 4px 5px rgba(0,0,0,.3))}
-/* ⭐ Luiz, 14/11: a vasilha era medida so pela LARGURA. Numa tela baixa ela
+/* ⭐ 14/11: a vasilha era medida so pela LARGURA. Numa tela baixa ela
    ficava mais alta que a faixa da bancada e o topo era cortado — pior ainda
    enquanto pulsa (cresce 9%). Agora entra um terceiro teto, --vas-max, que o
    JS calcula a partir da altura que a bancada realmente tem. */
@@ -359,7 +359,7 @@ button{font-family:inherit;cursor:pointer;border:none}
   </div>
   <div class="prateleira" id="prateleira"></div>
   <div class="rodape">
-    <!-- ⭐ Luiz, 14/11: a barra morava DENTRO da bancada, flutuando, e cobria a
+    <!-- ⭐ 14/11: a barra morava DENTRO da bancada, flutuando, e cobria a
          vasilha. Agora ela e uma linha do rodape, em fluxo normal, logo acima
          da instrucao que manda segurar. Em fluxo, sobrepor virou impossivel. -->
     <div class="barra" id="barra"><i></i></div>
@@ -921,7 +921,7 @@ function miniVasilha(n){ return figura(n); }
 
 /* Desenha a vasilha no estado em que ela está.
 
-   ⭐ Luiz, 14/11: saiu o preenchimento em CSS e entrou DESENHO PRONTO. Cada
+   ⭐ 14/11: saiu o preenchimento em CSS e entrou DESENHO PRONTO. Cada
    passo da receita diz qual imagem mostrar, e todos os estados de uma mesma
    vasilha compartilham a mesma caixa — por isso a troca é imperceptível.
    A imagem nova entra com um clarão rápido, para o olho perceber que mudou. */
@@ -1012,7 +1012,7 @@ function pintarEtapa(){
     document.getElementById('centro').classList.add('alvo'); }
   else if(e.t==='segurar'){ document.getElementById('centro').classList.add('alvo'); }
   else if(e.t==='servir'){
-    /* ⭐ Luiz, 14/11: no despejo só a xícara piscava, e quem joga não descobria
+    /* ⭐ 14/11: no despejo só a xícara piscava, e quem joga não descobria
        que precisa arrastar a VASILHA até ela. Agora a origem pulsa também, e
        com marca própria, para ficar claro de onde puxar. */
     document.getElementById('copo').classList.add('alvo');
@@ -1161,7 +1161,7 @@ function errar(el){
 }
 
 /* --- segurar ---
-   ⛔⛔ NÃO usar requestAnimationFrame para CONCLUIR a etapa (Luiz, 14/11).
+   ⛔⛔ NÃO usar requestAnimationFrame para CONCLUIR a etapa (14/11).
    Medido: em certos navegadores e no modo de economia do tablet o rAF
    simplesmente NÃO RODA — zero quadros em 900ms. Como era ele que enchia a
    barra e fechava a etapa, quem joga segurava o dedo para sempre e nada
@@ -1237,7 +1237,7 @@ function lado(nome,ms,venceu){
 /* ==========================================================================
    12. RANKING — do tablet, e compartilhado quando houver rede
 
-   ⭐ Luiz, 14/11: a ordem aqui é inegociável. O resultado é gravado NO TABLET
+   ⭐ 14/11: a ordem aqui é inegociável. O resultado é gravado NO TABLET
    primeiro, sempre; mandar para os outros é um extra que acontece depois. Por
    isso uma queda de rede nunca perde um tempo nem trava o jogo: o que não foi
    enviado fica numa fila e sai sozinho quando a rede volta.
@@ -1428,14 +1428,14 @@ window.addEventListener('resize',()=>{
 /* ==========================================================================
    13. GUARDAR O JOGO NO TABLET
 
-   ⭐ Luiz, 14/11: na primeira abertura com rede, o sw.js guarda o arquivo
+   ⭐ 14/11: na primeira abertura com rede, o sw.js guarda o arquivo
    inteiro dentro do aparelho. Da segunda vez em diante o jogo abre mesmo
    sem internet nenhuma — que é o caso do dia da feira, se o wifi oscilar.
 
    Vai dentro de try/catch e so roda em https (ou no proprio computador):
    se o navegador nao aceitar, o jogo continua igual, so sem o guardado.
    ========================================================================== */
-const VERSAO='2026-11-17 21:03';   // trocado automaticamente a cada publicacao
+const VERSAO='2026-11-17 21:09';   // trocado automaticamente a cada publicacao
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
     try{ navigator.serviceWorker.register('sw.js'); }catch(e){}

@@ -1,7 +1,7 @@
 /* ==========================================================================
    LA CRÈME CAFÉ — guarda o jogo dentro do tablet.
 
-   ⭐ Luiz, 14/11: sem isto, abrir a página sem internet dá tela branca. Na
+   ⭐ 14/11: sem isto, abrir a página sem internet dá tela branca. Na
    primeira vez que o tablet abre o jogo com rede, o arquivo inteiro fica
    guardado aqui dentro. Depois disso ele abre SEMPRE, com ou sem internet.
 
